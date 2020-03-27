@@ -4,7 +4,6 @@ print(f"Loading vector model...")
 nlp = spacy.load("en_core_web_lg")
 print(f"Model loaded.")
 
-
 headlines = (
     "Banks agree to 90-day grace period on mortgage payments for California "
     "families impacted by coronavirus, Gov. Newsom says",
@@ -31,8 +30,9 @@ for i, doc1 in enumerate(docs):
     for j, neighbor in enumerate(gradient):
         similarity, headline = neighbor
         print(f"    {j+1}. ({round(similarity, 3)*100}% similar) {headline}")
-    print("\n\n============================================================================\n\n")
-
+    print(
+        "\n\n============================================================================\n\n"
+    )
 """
 Output:
 /home/kz/.local/share/virtualenvs/coronaviruswire-v4DtK_G7/bin/python /home/kz/projects/coronaviruswire/src/coronaviruswire/similarity.py
@@ -224,5 +224,3 @@ Calculating 11 nearest neighbors for Headline #10: 'Nearly half of all patients 
 
 ============================================================================
 """
-
-

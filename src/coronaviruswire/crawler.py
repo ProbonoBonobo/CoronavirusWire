@@ -13,7 +13,6 @@ from html import unescape
 import re
 
 
-
 def format_text(txt):
     """Go away, weird ASCII unicode transliterations"""
     return unidecode(unescape(txt.strip()))
@@ -182,11 +181,16 @@ class SitemapInfo(Crawler):
        (url structure, publication date, descriptive summaries, etc.) to earmark URLs
        that are likely to contain relevant local news content. (News sites are really big,
        and it's not unusual for a sitemap to contain millions of URLs.)"""
-    def __init__(self,
-                 domain: str,
-                 sitemap_urls: list,
-                 is_local: callable,
-                 is_relevant: callable = lambda url: bool(re.findall(patterns['coronavirus'], '\n'.join([url.text, url.description, '\n'.join(url.keywords)])))):
+    def __init__(
+            self,
+            domain: str,
+            sitemap_urls: list,
+            is_local: callable,
+            is_relevant: callable = lambda url: bool(
+                re.findall(
+                    patterns['coronavirus'], '\n'.join(
+                        [url.text, url.description, '\n'.join(url.keywords)])))
+    ):
         super().__init__()
         super().children[domain] = self
         self.chan = deque()
@@ -207,8 +211,9 @@ class SitemapInfo(Crawler):
 
         async def _fetch(url):
             async with httpx.AsyncClient() as client:
-                responses.append(await client.get(
-                    url, timeout=60, headers=default_headers))
+                responses.append(await client.get(url,
+                                                  timeout=60,
+                                                  headers=default_headers))
 
         for sitemap_url in self.urls:
             async with trio.open_nursery() as nursery:
@@ -240,77 +245,95 @@ class SitemapInfo(Crawler):
         return self._is_relevant(url)
 
 
-
-
-
-
-
 def tokenize(txt):
     """Get rid of numbers, punctuation, and anything inside HTML tags"""
     txt = unidecode(unescape(txt))
     nums_and_xml_removed = re.sub(r"(<[^>]*>|\d+)", " ", txt)
     tokens = re.split(r"\b", nums_and_xml_removed)
     punctuation_removed = [
-        token for token in tokens if token.strip() and not any(
-            ch in set(['\n', ' ', *punctuation]) for ch in token)
+        token for token in tokens
+        if token.strip() and not any(ch in set(['\n', ' ', *punctuation])
+                                     for ch in token)
     ]
     return punctuation_removed
+
 
 # ==================================== CRAWLER OBJECTS =====================================
 
 # Washington Post
-wapo = SitemapInfo(
-    "washingtonpost.com", [
-        "https://www.washingtonpost.com/sitemaps/local.xml",
-        "https://www.washingtonpost.com/sitemaps/national.xml"
-    ],
-    is_local=
-    lambda xml: xml.url.startswith("https://www.washingtonpost.com/local"))
-
+wapo = SitemapInfo("washingtonpost.com", [
+    "https://www.washingtonpost.com/sitemaps/local.xml",
+    "https://www.washingtonpost.com/sitemaps/national.xml"
+],
+                   is_local=lambda xml: xml.url.startswith(
+                       "https://www.washingtonpost.com/local"))
 
 # Los Angeles Times
-latimes = SitemapInfo("latimes.com",
-                ["https://www.latimes.com/news-sitemap-content.xml",
-                 "https://www.latimes.com/news-sitemap-latest.xml",
-                 datetime.datetime.now().strftime('https://www.latimes.com/sitemap-%Y%m.xml')],
-                is_local=lambda xml: xml.url.startswith("https://www.latimes.com/california")
-                                     or any(re.findall(patterns['la'], ' '.join(tokenize(xml.text)))))
-
+latimes = SitemapInfo(
+    "latimes.com", [
+        "https://www.latimes.com/news-sitemap-content.xml",
+        "https://www.latimes.com/news-sitemap-latest.xml",
+        datetime.datetime.now().strftime(
+            'https://www.latimes.com/sitemap-%Y%m.xml')
+    ],
+    is_local=lambda xml: xml.url.startswith(
+        "https://www.latimes.com/california") or any(
+            re.findall(patterns['la'], ' '.join(tokenize(xml.text)))))
 
 # KCRW (Los Angeles's NPR station)
-kcrw = SitemapInfo("kcrw.com",
-                   ["https://www.kcrw.com/sitemap-shows/news/sitemap-1.xml"],
-                   is_local=lambda xml: any(re.findall(r"^https://www.kcrw.com/news/shows/(greater\-la|kcrw\-features)", xml.url)))
-
+kcrw = SitemapInfo(
+    "kcrw.com", ["https://www.kcrw.com/sitemap-shows/news/sitemap-1.xml"],
+    is_local=lambda xml: any(
+        re.findall(
+            r"^https://www.kcrw.com/news/shows/(greater\-la|kcrw\-features)",
+            xml.url)))
 
 # KTLA
-ktla = SitemapInfo("ktla.com",
-                   [datetime.datetime.now().strftime('https://ktla.com/sitemap.xml?yyyy=%Y&mm=%m&dd=%d')],
-                   is_local=lambda xml: any([re.findall("https://ktla.com/news/(local\-news|california)", xml.url, re.IGNORECASE)
-                                            , re.findall(patterns['la'], ' '.join(tokenize(xml.text)))]))
-
+ktla = SitemapInfo(
+    "ktla.com", [
+        datetime.datetime.now().strftime(
+            'https://ktla.com/sitemap.xml?yyyy=%Y&mm=%m&dd=%d')
+    ],
+    is_local=lambda xml: any([
+        re.findall("https://ktla.com/news/(local\-news|california)", xml.url,
+                   re.IGNORECASE),
+        re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
+    ]))
 
 # ABC 7 Los Angeles
-abc7_la = SitemapInfo("abc7.com",
-                      ["https://abc7.com/sitemap/news.xml"],
-                        is_local=lambda xml: any([xml.url.startswith("https://abc7.com/community-events"), re.findall(patterns['la'], ' '.join(tokenize(xml.text)))]))
-
+abc7_la = SitemapInfo(
+    "abc7.com", ["https://abc7.com/sitemap/news.xml"],
+    is_local=lambda xml: any([
+        xml.url.startswith("https://abc7.com/community-events"),
+        re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
+    ]))
 
 # Idaho Statesman
-idaho_statesman = SitemapInfo("idahostatesman.com",
-                              ["https://www.idahostatesman.com/sitemap/googlenews/story.xml"],
-                              is_local=lambda xml: xml.url.startswith("https://www.idahostatesman.com/news/local") or any('idaho' in kw.lower() for kw in xml.keywords) or any(re.findall(r'boise|idaho|treasure.{0,1}valley', xml.title, re.IGNORECASE)))
-
+idaho_statesman = SitemapInfo(
+    "idahostatesman.com",
+    ["https://www.idahostatesman.com/sitemap/googlenews/story.xml"],
+    is_local=lambda xml: xml.url.startswith(
+        "https://www.idahostatesman.com/news/local") or any(
+            'idaho' in kw.lower() for kw in xml.keywords) or any(
+                re.findall(r'boise|idaho|treasure.{0,1}valley', xml.title, re.
+                           IGNORECASE)))
 
 # San Diego Union Tribune
-union_trib = SitemapInfo("sandiegouniontribune.com",
-                         ["https://www.sandiegouniontribune.com/news-sitemap-content.xml",
-                          "https://www.sandiegouniontribune.com/news-sitemap-latest.xml"],
-                         is_local=lambda xml: xml.url.startswith("https://www.sandiegouniontribune.com/communities/")
-                                              or xml.url.startswith("https://www.sandiegouniontribune.com/north-county-community-news")
-                                              or xml.url.startswith("https://www.sandiegouniontribune.com/opinion/letters-to-the-editor")
-                                              or any(re.findall(r"(county|san.{0,1}diego|north.{0,1}county|local|california)", '\n'.join([xml.title, ', '.join(xml.keywords)]), re.IGNORECASE)))
-
+union_trib = SitemapInfo(
+    "sandiegouniontribune.com", [
+        "https://www.sandiegouniontribune.com/news-sitemap-content.xml",
+        "https://www.sandiegouniontribune.com/news-sitemap-latest.xml"
+    ],
+    is_local=lambda xml: xml.url.startswith(
+        "https://www.sandiegouniontribune.com/communities/"
+    ) or xml.url.startswith(
+        "https://www.sandiegouniontribune.com/north-county-community-news"
+    ) or xml.url.startswith(
+        "https://www.sandiegouniontribune.com/opinion/letters-to-the-editor")
+    or any(
+        re.findall(
+            r"(county|san.{0,1}diego|north.{0,1}county|local|california)", '\n'
+            .join([xml.title, ', '.join(xml.keywords)]), re.IGNORECASE)))
 
 if __name__ == '__main__':
     crawler = Crawler()
