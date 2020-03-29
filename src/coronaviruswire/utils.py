@@ -12,7 +12,7 @@ import lxml
 import re
 
 
-def async_fetch(urls,
+def async_fetch(*urls,
                 max_requests=25,
                 headers=default_headers,
                 timeout=60,
@@ -20,18 +20,18 @@ def async_fetch(urls,
     if isinstance(urls, str):
         urls = [urls]
     urls = [url_normalize(url) for url in urls]
-    chan = []
+    chan = {}
 
     async def fetch():
         limit = trio.CapacityLimiter(max_requests)
 
         async def async_fetch(url, headers, timeout, **kwargs):
             async with httpx.AsyncClient() as client:
-                response = await client.get(url,
+                chan[url] = await client.get(url,
                                             headers=default_headers,
                                             timeout=timeout,
                                             **kwargs)
-            chan.append(response)
+
 
         async with trio.open_nursery() as nursery:
             for url in urls:
@@ -40,6 +40,7 @@ def async_fetch(urls,
                                        **kwargs)
 
     trio.run(fetch)
+    chan = [chan[url] for url in urls]
     if len(chan) == 1:
         chan = chan[0]
     return chan
@@ -60,8 +61,8 @@ def parse_html(responses):
 if __name__ == '__main__':
     responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
                             "news.ycombinator.com")
-    responses = parse_html(responses)
-    doc = responses[0]
-    print([node for node in doc.tree.xpath("//a/@href")])
-    print(doc.__dict__)
-    print("ok")
+    # responses = parse_html(responses)
+    # doc = responses[0]
+    # print([node for node in doc.tree.xpath("//a/@href")])
+    # print(doc.__dict__)
+    # print("ok")
