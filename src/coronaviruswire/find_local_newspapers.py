@@ -1,4 +1,6 @@
 import sys
+import pickle
+from munch import Munch
 import json
 from collections import defaultdict
 from src.coronaviruswire.utils import async_fetch
@@ -10,15 +12,27 @@ import time
 
 wiki_url = "https://en.wikipedia.org/wiki/List_of_newspapers_serving_cities_over_100,000_in_the_United_States"
 
+
 class WikiMetadata:
-    data = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    """Inherit serializable interface from Munch"""
+    flattened = defaultdict(list)
+    index = defaultdict(list)
+    reverse_index = defaultdict(list)
+
     def __init__(self, page_title, heading, subheading, group, items):
         self.page_title = page_title
         self.heading = heading
         self.subheading = subheading or group
         self.group = group
         self.items = items
-        self.data[self.group][self.page_title] = self.items
+        self.flattened[self.page_title].extend(self.items)
+        self.flattened[self.page_title].append(self.page_title.split(",")[0])
+        self.index[self.page_title].append(self.__dict__)
+        self.flattened[self.page_title] = sorted(set(self.flattened))
+        for item in self.items:
+            if self.page_title not in self.reverse_index[item]:
+                self.reverse_index[item].append(self.page_title)
+
     # def __dict__(self):
     #     return {self.group: {self.page_title: self.items}}
     # def __str__(self):
@@ -40,7 +54,6 @@ def get_text_chunks(node):
     return recursively_get_text(node).split("\n")
 
 
-
 def parse_wiki_footer(city, state, tree):
     rows = tree.xpath("//tr")
     page_title = ', '.join([city, state])
@@ -54,13 +67,18 @@ def parse_wiki_footer(city, state, tree):
         items = []
         for kid in row.getchildren():
             try:
-                tag, klass, text = kid.tag, kid.attrib['class'].split(" "),  [unidecode(chunk) for chunk in get_text_chunks(kid)]
+                if 'class' not in kid.attrib:
+                    continue
+                tag, klass, text = kid.tag, kid.attrib['class'].split(" "), [
+                    unidecode(chunk) for chunk in get_text_chunks(kid)
+                ]
                 is_heading = 'navbox-title' in klass
                 is_subheading = 'navbox-abovebelow' in klass
                 is_group_label = 'navbox-group' in klass
                 is_group_vals = 'navbox-list' in klass
                 if is_heading:
-                    heading = ' '.join([chunk for chunk in text if chunk not in 'vte'])
+                    heading = ' '.join(
+                        [chunk for chunk in text if chunk not in 'vte'])
                     subheading = ""
                     group = ""
                     items = []
@@ -70,9 +88,11 @@ def parse_wiki_footer(city, state, tree):
                     group = ' '.join(text)
                 elif is_group_vals:
                     items = text
-                    obj = WikiMetadata(page_title, heading, subheading, group, items)
+                    print(f"Group items are: {items}")
+                    obj = WikiMetadata(page_title, heading, subheading, group,
+                                       items)
+                    print(json.dumps(obj.__dict__))
                     coll.append(obj)
-
 
             except Exception as e:
                 pass
@@ -96,8 +116,12 @@ def extract_publications_by_city(tree):
                 k = re.sub("^(Greater |References)", "", k)
         else:
             try:
-                groups[k] = {node.text_content(): urljoin("https://en.wikipedia.org/", node.attrib['href']) for node in
-                             node.xpath(".//a") if not "index.php" in node.attrib['href']}
+                groups[k] = {
+                    node.text_content(): urljoin("https://en.wikipedia.org/",
+                                                 node.attrib['href'])
+                    for node in node.xpath(".//a")
+                    if not "index.php" in node.attrib['href']
+                }
             except Exception as e:
                 print(e)
     pubs = []
@@ -112,7 +136,14 @@ def extract_publications_by_city(tree):
         city_url = f"""https://en.wikipedia.org/wiki/{city.replace(" ", "_")},_{state.replace(" ", "_")}"""
 
         for name, url in v.items():
-            pubs.append({"name": name, "loc": k, "city": city, "state": state, "news_wiki": url, "city_wiki": city_url})
+            pubs.append({
+                "name": name,
+                "loc": k,
+                "city": city,
+                "state": state,
+                "news_wiki": url,
+                "city_wiki": city_url
+            })
 
     return pubs
 
@@ -127,7 +158,8 @@ def main():
     city_pages = async_fetch(*[pub['city_wiki'] for pub in publications])
     news_pages = async_fetch(*[pub['news_wiki'] for pub in publications])
     output = []
-    for data, city_wiki, news_wiki in zip(publications, city_pages, news_pages):
+    for data, city_wiki, news_wiki in zip(publications, city_pages,
+                                          news_pages):
         if 'Los' in data['loc']:
             print(json.dumps(data))
         try:
@@ -135,17 +167,24 @@ def main():
             if not city_wiki.status_code == '200':
                 print(city_wiki.url)
 
-            city_tree = fromstring(city_wiki.content, 'https://en.wikipedia.org/wiki/')
-            news_tree = fromstring(news_wiki.content, 'https://en.wikipedia.org/wiki/')
-            print(city_tree.xpath("//h1")[0].text, news_tree.xpath("//h1")[0].text_content())
+            city_tree = fromstring(city_wiki.content,
+                                   'https://en.wikipedia.org/wiki/')
+            news_tree = fromstring(news_wiki.content,
+                                   'https://en.wikipedia.org/wiki/')
+            print(
+                city_tree.xpath("//h1")[0].text,
+                news_tree.xpath("//h1")[0].text_content())
 
             data['lat'] = unidecode(city_tree.cssselect(".latitude")[0].text)
             data['long'] = unidecode(city_tree.cssselect(".longitude")[0].text)
             data['city'], data['state'] = data['loc'].split(", ")
-            data['info'] = [wiki.__dict__ for wiki in parse_wiki_footer(data['city'], data['state'], city_tree)]
-            print(json.dumps(WikiMetadata.data, indent=4))
+            data['info'] = [
+                wiki.__dict__ for wiki in parse_wiki_footer(
+                    data['city'], data['state'], city_tree)
+            ]
             try:
-                data['url'] = unidecode(news_tree.xpath("//tr//a[contains(.,'.com')]/@href")[0])
+                data['url'] = unidecode(
+                    news_tree.xpath("//tr//a[contains(.,'.com')]/@href")[0])
                 print(f"Got url for {data['name']}: {data['url']}")
             except Exception as e:
                 print(data)
@@ -155,37 +194,37 @@ def main():
             print(f"Couldn't parse {data['city_url']}")
     return output
 
-        #
-        #     meta = city_tree.xpath(
-        #         "//tr[contains(., 'Municipalities')]")
-        #     # meta.extend(tree.xpath("//tr[contains(., 'Neighborhoods')//following-sibling::tr"))
-        #     for node in meta:
-        #         try:
-        #
-        #             vals = node.xpath(".//td/div/ul/li")
-        #             for val in vals:
-        #                 while val.has_children
-        #
-        #             v = [[child.text_content() for child in children][0]
-        #                  for children in [node.getchildren() for node in vals]]
-        #             cats = node.xpath(".//th")[0]
-        #             print(f"{cats.text_content()} : {v}")
-        #             data['info'][cats.text_content()] = v
-        #
-        #             # print(cats)
-        #         except Exception as e:
-        #             print(e.__class__.__name__, e)
-        #             continue
-        #     categories = [
-        #         unidecode(node.xpath(".//th/a")[0].text) for node in meta
-        #     ]
-        #     data['categories'] = categories
-        #     print(json.dumps(data, indent=4))
-        # except Exception as e:
-        #     print(e.__class__.__name__, e)
-        #     print(sys.gettrace())
-        #     print(f"Couldn't get {data}")
-        # output.append(data)
+    #
+    #     meta = city_tree.xpath(
+    #         "//tr[contains(., 'Municipalities')]")
+    #     # meta.extend(tree.xpath("//tr[contains(., 'Neighborhoods')//following-sibling::tr"))
+    #     for node in meta:
+    #         try:
+    #
+    #             vals = node.xpath(".//td/div/ul/li")
+    #             for val in vals:
+    #                 while val.has_children
+    #
+    #             v = [[child.text_content() for child in children][0]
+    #                  for children in [node.getchildren() for node in vals]]
+    #             cats = node.xpath(".//th")[0]
+    #             print(f"{cats.text_content()} : {v}")
+    #             data['info'][cats.text_content()] = v
+    #
+    #             # print(cats)
+    #         except Exception as e:
+    #             print(e.__class__.__name__, e)
+    #             continue
+    #     categories = [
+    #         unidecode(node.xpath(".//th/a")[0].text) for node in meta
+    #     ]
+    #     data['categories'] = categories
+    #     print(json.dumps(data, indent=4))
+    # except Exception as e:
+    #     print(e.__class__.__name__, e)
+    #     print(sys.gettrace())
+    #     print(f"Couldn't get {data}")
+    # output.append(data)
     # for obj in publications:
     #     print(json.dumps(obj))
     #     return output
@@ -198,12 +237,11 @@ if __name__ == '__main__':
         for obj in result['info']:
             meta.append(obj)
     with open('meta.json', 'w') as f:
-        json.dump(WikiMetadata.data,
-                  f,
-                  indent=4,
-                  sort_keys=True)
-    with open('output.json', 'w') as f:
-        json.dump({obj['name']: obj for obj in out},
-                  f,
-                  indent=4,
-                  sort_keys=True)
+        json.dump(
+            {
+                "flat": WikiMetadata.flattened,
+                "reverse_index": WikiMetadata.reverse_index,
+                "index": WikiMetadata.index
+            }, f)
+    with open('output.pkl', 'wb') as f:
+        pickle.dump(out, f)

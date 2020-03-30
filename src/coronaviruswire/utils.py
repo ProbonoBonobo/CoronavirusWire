@@ -1,3 +1,4 @@
+import csv
 from concurrent import futures
 from src.coronaviruswire.common import default_headers
 import trio
@@ -28,10 +29,9 @@ def async_fetch(*urls,
         async def async_fetch(url, headers, timeout, **kwargs):
             async with httpx.AsyncClient() as client:
                 chan[url] = await client.get(url,
-                                            headers=default_headers,
-                                            timeout=timeout,
-                                            **kwargs)
-
+                                             headers=default_headers,
+                                             timeout=timeout,
+                                             **kwargs)
 
         async with trio.open_nursery() as nursery:
             for url in urls:
@@ -56,6 +56,20 @@ def parse_html(responses):
         response.base = url
 
     return responses
+
+
+def iter_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.csv",
+             delimiter="\t"):
+    with open(fp, 'r') as f:
+        f_csv = csv.DictReader(f, delimiter='\t')
+        cols = f_csv.fieldnames
+        for row in f_csv:
+            yield dict(row.items())
+
+
+def load_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv",
+             delimiter="\t"):
+    return list(iter_csv(fp, delimiter))
 
 
 if __name__ == '__main__':

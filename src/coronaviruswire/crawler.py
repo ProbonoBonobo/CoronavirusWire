@@ -1,3 +1,5 @@
+from src.coronaviruswire.common import patterns, default_headers
+from src.coronaviruswire.utils import load_csv
 import random
 import datetime
 import weakref
@@ -122,7 +124,6 @@ class Crawler:
             n = len(queue)
             print(f"[ {get_timestamp()} ] Found {n} relevant local URLs.")
             async with trio.open_nursery() as nursery:
-                all_done = False
                 async with capacitator:
                     for next_url in queue:
                         print(
@@ -143,10 +144,18 @@ class Crawler:
                 tree = parse_html(html)
                 schemata = tree.xpath(
                     "//script[contains(@type, 'json')]/text()")
-                jsonized = [json.loads(schema) for schema in schemata]
+                jsonized = []
+                for schema in schemata:
+                    try:
+                        jsonized.append(json.loads(schema))
+                    except json.decoder.JSONDecodeError as e:
+                        print(
+                            f"URL {response.url} contains a bad JSON object:")
+                        print(schema)
+
                 response['schemata'] = jsonized
             except Exception as e:
-                print(e.__class__.__name__(), e, response)
+                print(e.__class__.__name__, e, response)
         return responses
 
     async def crawl(self, *kids):
@@ -211,7 +220,7 @@ class SitemapInfo(Crawler):
 
         async def _fetch(url):
             async with httpx.AsyncClient() as client:
-                responses.append(await client.get(url,
+                responses.append(await client.get(str(url),
                                                   timeout=60,
                                                   headers=default_headers))
 
@@ -258,83 +267,116 @@ def tokenize(txt):
     return punctuation_removed
 
 
+def load_sitemap_urls(fp="lib/newspapers.tsv"):
+    news = load_csv(fp)
+    loaded = []
+    for row in news:
+        resolved_urls = []
+        for k, v in row.items():
+            if not v:
+                continue
+            elif k.startswith("sitemap_url_template"):
+                resolved = datetime.datetime.now().strftime(v)
+                resolved_urls.append(resolved)
+            elif k.startswith("sitemap_url"):
+                resolved_urls.append(v)
+        row['sitemap_urls'] = resolved_urls
+        loaded.append(row)
+    return loaded
+
+
+def initialize_crawlers():
+    index = {}
+    news = load_sitemap_urls()
+    # restrict to just the first 5 rows until we hammer out the glitches
+    for row in news[0:5]:
+        index[row['name']] = SitemapInfo(row['url'],
+                                         row['sitemap_urls'],
+                                         is_local=lambda xml: True,
+                                         is_relevant=lambda xml: True)
+    return index
+
+
 # ==================================== CRAWLER OBJECTS =====================================
 
+crawlers = initialize_crawlers()
 # Washington Post
-wapo = SitemapInfo("washingtonpost.com", [
-    "https://www.washingtonpost.com/sitemaps/local.xml",
-    "https://www.washingtonpost.com/sitemaps/national.xml"
-],
-                   is_local=lambda xml: xml.url.startswith(
-                       "https://www.washingtonpost.com/local"))
+# wapo = SitemapInfo("washingtonpost.com", [
+#     "https://www.washingtonpost.com/sitemaps/local.xml",
+#     "https://www.washingtonpost.com/sitemaps/national.xml"
+# ],
+#                    is_local=lambda xml: xml.url.startswith(
+#                        "https://www.washingtonpost.com/local"))
+#
+# # Los Angeles Times
+# latimes = SitemapInfo(
+#     "latimes.com", [
+#         "https://www.latimes.com/news-sitemap-content.xml",
+#         "https://www.latimes.com/news-sitemap-latest.xml",
+#         datetime.datetime.now().strftime(
+#             'https://www.latimes.com/sitemap-%Y%m.xml')
+#     ],
+#     is_local=lambda xml: xml.url.startswith(
+#         "https://www.latimes.com/california") or any(
+#             re.findall(patterns['la'], ' '.join(tokenize(xml.text)))))
+#
+# # KCRW (Los Angeles's NPR station)
+# kcrw = SitemapInfo(
+#     "kcrw.com", ["https://www.kcrw.com/sitemap-shows/news/sitemap-1.xml"],
+#     is_local=lambda xml: any(
+#         re.findall(
+#             r"^https://www.kcrw.com/news/shows/(greater\-la|kcrw\-features)",
+#             xml.url)))
+#
+# # KTLA
+# ktla = SitemapInfo(
+#     "ktla.com", [
+#         datetime.datetime.now().strftime(
+#             'https://ktla.com/sitemap.xml?yyyy=%Y&mm=%m&dd=%d')
+#     ],
+#     is_local=lambda xml: any([
+#         re.findall("https://ktla.com/news/(local\-news|california)", xml.url,
+#                    re.IGNORECASE),
+#         re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
+#     ]))
+#
+# # ABC 7 Los Angeles
+# abc7_la = SitemapInfo(
+#     "abc7.com", ["https://abc7.com/sitemap/news.xml"],
+#     is_local=lambda xml: any([
+#         xml.url.startswith("https://abc7.com/community-events"),
+#         re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
+#     ]))
+#
+# # Idaho Statesman
+# idaho_statesman = SitemapInfo(
+#     "idahostatesman.com",
+#     ["https://www.idahostatesman.com/sitemap/googlenews/story.xml"],
+#     is_local=lambda xml: xml.url.startswith(
+#         "https://www.idahostatesman.com/news/local") or any(
+#             'idaho' in kw.lower() for kw in xml.keywords) or any(
+#                 re.findall(r'boise|idaho|treasure.{0,1}valley', xml.title, re.
+#                            IGNORECASE)))
+#
+# # San Diego Union Tribune
+# union_trib = SitemapInfo(
+#     "sandiegouniontribune.com", [
+#         "https://www.sandiegouniontribune.com/news-sitemap-content.xml",
+#         "https://www.sandiegouniontribune.com/news-sitemap-latest.xml"
+#     ],
+#     is_local=lambda xml: True, is_relevant=lambda xml: True)
 
-# Los Angeles Times
-latimes = SitemapInfo(
-    "latimes.com", [
-        "https://www.latimes.com/news-sitemap-content.xml",
-        "https://www.latimes.com/news-sitemap-latest.xml",
-        datetime.datetime.now().strftime(
-            'https://www.latimes.com/sitemap-%Y%m.xml')
-    ],
-    is_local=lambda xml: xml.url.startswith(
-        "https://www.latimes.com/california") or any(
-            re.findall(patterns['la'], ' '.join(tokenize(xml.text)))))
-
-# KCRW (Los Angeles's NPR station)
-kcrw = SitemapInfo(
-    "kcrw.com", ["https://www.kcrw.com/sitemap-shows/news/sitemap-1.xml"],
-    is_local=lambda xml: any(
-        re.findall(
-            r"^https://www.kcrw.com/news/shows/(greater\-la|kcrw\-features)",
-            xml.url)))
-
-# KTLA
-ktla = SitemapInfo(
-    "ktla.com", [
-        datetime.datetime.now().strftime(
-            'https://ktla.com/sitemap.xml?yyyy=%Y&mm=%m&dd=%d')
-    ],
-    is_local=lambda xml: any([
-        re.findall("https://ktla.com/news/(local\-news|california)", xml.url,
-                   re.IGNORECASE),
-        re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
-    ]))
-
-# ABC 7 Los Angeles
-abc7_la = SitemapInfo(
-    "abc7.com", ["https://abc7.com/sitemap/news.xml"],
-    is_local=lambda xml: any([
-        xml.url.startswith("https://abc7.com/community-events"),
-        re.findall(patterns['la'], ' '.join(tokenize(xml.text)))
-    ]))
-
-# Idaho Statesman
-idaho_statesman = SitemapInfo(
-    "idahostatesman.com",
-    ["https://www.idahostatesman.com/sitemap/googlenews/story.xml"],
-    is_local=lambda xml: xml.url.startswith(
-        "https://www.idahostatesman.com/news/local") or any(
-            'idaho' in kw.lower() for kw in xml.keywords) or any(
-                re.findall(r'boise|idaho|treasure.{0,1}valley', xml.title, re.
-                           IGNORECASE)))
-
-# San Diego Union Tribune
-union_trib = SitemapInfo(
-    "sandiegouniontribune.com", [
-        "https://www.sandiegouniontribune.com/news-sitemap-content.xml",
-        "https://www.sandiegouniontribune.com/news-sitemap-latest.xml"
-    ],
-    is_local=lambda xml: xml.url.startswith(
-        "https://www.sandiegouniontribune.com/communities/"
-    ) or xml.url.startswith(
-        "https://www.sandiegouniontribune.com/north-county-community-news"
-    ) or xml.url.startswith(
-        "https://www.sandiegouniontribune.com/opinion/letters-to-the-editor")
-    or any(
-        re.findall(
-            r"(county|san.{0,1}diego|north.{0,1}county|local|california)", '\n'
-            .join([xml.title, ', '.join(xml.keywords)]), re.IGNORECASE)))
+# is_local=lambda xml: xml.url.startswith(
+#     "https://www.sandiegouniontribune.com/communities/"
+# ) or xml.url.startswith(
+#     "https://www.sandiegouniontribune.com/north-county-community-news"
+# ) or xml.url.startswith(
+#     "https://www.sandiegouniontribune.com/opinion/letters-to-the-editor")
+# or any(
+#     re.findall(
+#         r"(county|san.{0,1}diego|north.{0,1}county|local|california)", '\n'
+#         .join([xml.title, ', '.join(xml.keywords)]), re.IGNORECASE)))
 
 if __name__ == '__main__':
     crawler = Crawler()
-    trio.run(crawler.crawl, latimes, kcrw, abc7_la)
+    trio.run(crawler.crawl)

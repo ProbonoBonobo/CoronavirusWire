@@ -15,6 +15,7 @@ spacy = "*"
 futures = "*"
 url-normalize = "*"
 cssselect = "*"
+munch = "*"
 
 [requires]
 python_version = "3.8"
