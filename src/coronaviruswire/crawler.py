@@ -123,9 +123,14 @@ class Crawler:
             curr = 0
             n = len(queue)
             print(f"[ {get_timestamp()} ] Found {n} relevant local URLs.")
-            async with trio.open_nursery() as nursery:
-                async with capacitator:
-                    for next_url in queue:
+            while True:
+                async with trio.open_nursery() as nursery:
+                    for i in range(self.max_requests):
+                        try:
+                            next_url = queue.popleft()
+                        except:
+                            print(f"[ {get_timestamp()} ] Scheduling complete.")
+                            break
                         print(
                             f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url} ({curr}/{n})"
                         )
@@ -267,7 +272,7 @@ def tokenize(txt):
     return punctuation_removed
 
 
-def load_sitemap_urls(fp="lib/newspapers.tsv"):
+def load_sitemap_urls(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
     news = load_csv(fp)
     loaded = []
     for row in news:
