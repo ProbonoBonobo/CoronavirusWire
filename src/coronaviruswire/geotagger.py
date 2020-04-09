@@ -31,20 +31,20 @@ def diag2poly(p1, p2):
 async def search_for_place_async(place_name, location=None, radius=300):
     if location is None:
         center = None
-        radius = ""
     elif location in coords:
         center = coords[location][0]
-
     else:
         response = await search_for_place_async(location)
         center = response.center
+
     if center:
         lat, long = center
-        radius = 1000
-        radius = f"&locationbias=circle:{radius}@{lat},{long}"
+        location_bias = f"&locationbias=circle:{radius}@{lat},{long}"
+    else:
+        location_bias = ""
 
     query = quote_plus(place_name)
-    s = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={query}{radius}&fields=formatted_address,name,opening_hours,geometry&inputtype=textquery&key=AIzaSyALE94yjbDhNRZbigm6xnaDnnSIe4Vlw00"
+    s = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={query}{location_bias}&fields=formatted_address,name,opening_hours,geometry&inputtype=textquery&key=AIzaSyALE94yjbDhNRZbigm6xnaDnnSIe4Vlw00"
     async with httpx.AsyncClient() as client:
         res = await client.get(s)
         print(res.json())
