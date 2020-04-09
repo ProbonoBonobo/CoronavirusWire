@@ -7,6 +7,7 @@ from dateutil.parser import parse as parse_timestamp
 from urllib.parse import urlparse
 import random
 import datetime
+import os
 import weakref
 from collections import deque
 import httpx
@@ -472,7 +473,8 @@ def tokenize(txt):
     return punctuation_removed
 
 
-def load_sitemap_urls(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
+def load_sitemap_urls(fp="../../lib/newspapers.tsv"):
+    fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = []
     for row in list(news):
