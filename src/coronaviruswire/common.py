@@ -1,4 +1,71 @@
 import re
+import dataset
+import psycopg2
+
+db_config = {"user": "kz",
+             "password": "admin",
+             "host": "127.0.0.1",
+             "port": "5432",
+             "database": "cvwire"}
+
+db = dataset.connect(f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}")
+conn = psycopg2.connect(**db_config)
+
+
+def create_crawldb_table():
+    if 'crawldb' in db.tables:
+        return
+    create_table_query = '''CREATE TABLE crawldb
+     (id SERIAL PRIMARY KEY,
+      name text,
+      site TEXT,
+      url TEXT,
+      path TEXT,
+      visited boolean NOT NULL DEFAULT FALSE,
+      lastmod timestamp,
+      articlebody text,
+      headline text,
+      lastcrawled timestamp,
+      metadata json,
+      has_metadata boolean,
+      html text,
+      audience_tag text,
+      is_relevant boolean,
+      status_code int,
+      city text,
+      state text,
+      loc text,
+      lat text,
+      long text,
+      ok boolean DEFAULT FALSE,
+      length int DEFAULT 0)'''
+    with conn.cursor() as cursor:
+        cursor.execute(create_table_query)
+    conn.commit()
+
+
+def create_sitemaps_table():
+    if 'sitemaps' in db.tables:
+        return
+    create_table_query = ("CREATE TABLE sitemaps\n"
+                          "     (id SERIAL PRIMARY KEY,\n"
+                          "      site TEXT,\n"
+                          "      url TEXT NOT NULL UNIQUE,\n"
+                          "      last_modified date DEFAULT CURRENT_DATE,\n"
+                          "      has_timestamp boolean,\n"
+                          "      needs_crawl boolean DEFAULT TRUE,\n"
+                          "      last_crawled date,\n"
+                          "      is_fresh boolean default TRUE,\n"
+                          "      fresh_content_urls int,\n"
+                          "      fresh_sitemap_urls int,\n"
+                          "      fresh_urls int,\n"
+                          "      is_sitemapindex boolean,\n"
+                          "      is_urlset boolean,\n"
+                          "      type text)")
+    with conn.cursor() as cursor:
+        cursor.execute(create_table_query)
+    conn.commit()
+
 # these regex patterns help the sitemap crawler to identify local URLs that are relevant to
 # coronavirus
 patterns = {
@@ -23,3 +90,5 @@ default_headers = {
     "cookie":
     "nyt-a=29482ninwfwe_efw;"
 }
+
+

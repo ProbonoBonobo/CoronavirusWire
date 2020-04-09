@@ -1,5 +1,10 @@
-from src.coronaviruswire.common import patterns, default_headers
+from src.coronaviruswire.common import patterns, default_headers, create_sitemaps_table, create_crawldb_table, db
+from src.coronaviruswire.utils import parse_schemata, format_text, deduplicate_content, deduplicate_table
+from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
+from munch import Munch
+from dateutil.parser import parse as parse_timestamp
+from urllib.parse import urlparse
 import random
 import datetime
 import weakref
@@ -13,20 +18,52 @@ import json
 from unidecode import unidecode
 from html import unescape
 import re
+from utils import format_text
+from copy import deepcopy as copy
+
+create_crawldb_table()
+create_sitemaps_table()
+crawldb = db['crawldb']
+sitemapdb = db['sitemaps']
+# crawldb.drop()
+# sitemapdb.drop()
+# create_crawldb_table()
+# create_sitemaps_table()
+import time
+seen = set([row['url'] for row in crawldb])
 
 
-def format_text(txt):
-    """Go away, weird ASCII unicode transliterations"""
-    return unidecode(unescape(txt.strip()))
+
+def get_text_chunks(node):
+    def recursively_get_text(node):
+        if not node:
+            return ""
+        elif hasattr(node, 'getchildren') and node.getchildren():
+            text = [recursively_get_text(kid) for kid in node.getchildren()]
+            text = [txt for txt in text if txt]
+            return '\n'.join(text)
+        elif isinstance(node, str):
+            return node.strip()
+        else:
+            return node.text
+
+    return recursively_get_text(node)
+import sys
 
 
-class SitemapContentLink:
+def flatten_list(alist):
+  for item in alist:
+    if isinstance(item, list):
+      for subitem in item: yield subitem
+    else:
+      yield item
+
+class Article(Munch):
     """URL objects extracted from a sitemap contain usually only a small subset of
        attribute annotations specified by the <urlset> schema, so let's define a
        generic, database-friendly interface."""
 
-    _seen = set(
-    )  # not really useful currently, but can be initialized from a database table object
+    __seen__ = set(seen)  # not really useful currently, but can be initialized from a database table object
 
     def __init__(self, xml):
         url = xml.find("loc")
@@ -39,18 +76,150 @@ class SitemapContentLink:
             title = xml.find("video:title")
         if not description:
             description = xml.find("video:description")
-        self.url = format_text(url.text) if url else ""
-        self.lastmod = format_text(lastmod.text) if lastmod else ""
-        self.title = format_text(title.text) if title else ""
+        self.url = format_text(url_normalize(url.text.strip().lower()))
+        self.html = ""
+        self.tree = None
+        parsed = urlparse(self.url)
+        self.site = parsed.netloc
+        self.path = parsed.path
+        try:
+            pardir = '/'.join(re.sub(r'(/)$', '', self.path).split("/")[:-2])
+        except:
+            pardir = "/"
+        self.base_url = f"{parsed.scheme}://{parsed.netloc}{pardir}"
+        self.lastmod = parse_timestamp(format_text(lastmod.text)) if lastmod else None
+        self.headline = format_text(title.text.strip()) if title else ""
         self.keywords = [format_text(kw) for kw in keywords.text.split(",")
                          ] if keywords else []
         self.publication_date = format_text(
             publication_date.text) if publication_date else ""
         self.description = format_text(description.text) if description else ""
-        self.text = format_text(xml.__repr__())
-        self.seen = self.url in self._seen
-        self._seen.add(self.url)
+        self.xml = format_text(xml.__repr__())
+        self.metadata = {"schemata": [], "errors": []}
+        self.has_metadata = False
+        self.seen = self.url in seen
+        # seen.add(self.url)
+        self.articlebody = ""
+        self.visited = False
+    def __repr__(self):
+        return json.dumps(self.__dict__, indent=4, default=str)
+    #
+    # def extract_metadata(self):
+    #
+    #         for obj in self.metadata['schemata']:
+    #             print(json.dumps(obj, indent=4))
+    #
+    #         l = flatten_list(self.metadata['schemata'])
+    #         try:
+    #             queue = deque([[obj for obj in l if obj and isinstance(obj, dict) and
+    #                        '@type' in obj and obj['@type']
+    #                        in ("Article", "NewsArticle", "LiveBlogPosting",
+    #                            "BlogPosting")][0]])
+    #         except Exception as e:
+    #             return
+    #
+    #         required_attrs = (
+    #         "articleBody", "articleSection", "headline", "description", "keywords", "datePublished", "dateModified",
+    #         "url", "author", "publisher", "sourceOrganization", "liveBlogUpdate", "hasPart")
+    #         nested_selectors = {"author": ("@id", "name"),
+    #                             "publisher": ("@id", "name"),
+    #                             "sourceOrganization": ("@id", "name"),
+    #                             "hasPart": ("cssSelector",)}
+    #         flat = {}
+    #         while queue:
+    #             obj = queue.popleft()
+    #
+    #             for selector in required_attrs:
+    #
+    #                 exists = selector in obj and selector in flat and flat[selector]
+    #                 flat[f"has_{selector}"] = exists
+    #                 if selector in flat and flat[selector] is not None:
+    #                     continue
+    #                 if not exists:
+    #                     flat[selector] = None
+    #
+    #                 elif selector in nested_selectors:
+    #                     kid_aliases = nested_selectors[selector]
+    #                     ok = False
+    #                     for alias in kid_aliases:
+    #                         try:
+    #                             if isinstance(obj[selector], list):
+    #                                 flat[selector] = ', '.join([child[alias] for child in obj[selector]])
+    #                             elif isinstance(obj[selector], dict):
+    #                                 flat[selector] = obj[selector][alias]
+    #                             ok = True
+    #                         except KeyError as e:
+    #                             print(sys.gettrace())
+    #                     if not ok:
+    #                         print(
+    #                             f"Failed to select {selector} from {type(obj[selector]).__name__} object:\n    {obj[selector]}")
+    #                         # breakpoint()
+    #                 elif selector in obj:
+    #                     flat[selector] = obj[selector]
+    #                 else:
+    #                     continue
+    #
+    #         print(json.dumps(flat, indent=2))
+    #         if not flat:
+    #             return
+    #         if isinstance(flat['articleBody'], list):
+    #             flat['articlebody'] = '\n'.join(flat['articleBody'])
+    #         if flat['has_liveBlogUpdate']:
+    #             queue.extend(obj['liveBlogUpdate'])
+    #
+    #
+    #             #     if article:
+    #             #         obj['articleBody'] = article
+    #             #         obj['has_articleBody'] = True
+    #             # if not obj['has_articleBody']:
+    #             #     article = '\n'.join([node.text_content().strip() for node in dom.cssselect(f"title, h1, p") if
+    #             #                          len(node.text_content().strip()) > 36])
+    #             #     obj['articleBody'] = article
+    #             #     obj['has_articleBody'] = bool(len(article))
+    #             #     print(article)
+    #             # if obj['has_keywords'] and not isinstance(obj['keywords'], str):
+    #             #     obj['keywords'] = ', '.join(obj['keywords'])
+    #
+    #         for k, v in flat.items():
+    #             if v and k in required_attrs and isinstance(v, str):
+    #                 flat[k] = unidecode(unescape(v))
+    #                 if not hasattr(self, k) or not getattr(self, k):
+    #                     setattr(self, k, flat[k])
+    #             # obj['meta'] = {node.attrib['property']: unidecode(unescape(node.attrib['content'])) for node in
+    #             #                dom.xpath("//meta[contains(@property, ':')]")}
+    #             # obj['type'] = obj['@type']
+    #             # obj['location_counts'] = count_location_strings(
+    #             #     f"{obj['headline']} {obj['description']} {obj['meta']} {obj['articleSection']} {obj['articleBody']}") if \
+    #             # obj['has_articleBody'] else {}
+    #             # obj['inferred_location'] = infer_location(obj['location_counts'])
+    #             # obj['inferred_state'] = infer_state(obj['inferred_location'])
+    #             # output.append(obj)
+    #
+    #             print(json.dumps(flat, indent=4, sort_keys=True))
 
+
+    def parse(self):
+        self.has_metadata = bool(self.metadata['schemata'])
+        self.metadata_count = len(self.metadata['schemata'])
+        self.visited = bool(self.html)
+        for k,v in parse_schemata(self.__dict__).items():
+            setattr(self, k, v)
+        try:
+            tree = parse_html(self.html, self.base_url)
+            def find_one(selector):
+                try:
+                    return format_text(tree.xpath(selector)[0].text_content())
+                except:
+                    return ""
+            if not self.headline:
+                self.headline = find_one("//h1")
+            if not self.articlebody:
+                self.articlebody = '\n'.join([format_text(node.text_content()) for node in tree.xpath("//p")])
+            print(self.articlebody)
+        except Exception as e:
+            print(e)
+        # self.html = ""
+        return self.__dict__
 
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %X")
@@ -65,7 +234,7 @@ class Crawler:
     children = weakref.WeakValueDictionary()  # to remember where my kids are
     chan = []  # shared memory buffer for accumulating asynchronous outputs
 
-    max_requests = 25
+    max_requests = 50
 
     async def crawl_sitemaps(self, children=None):
         """Sequentially ask Crawler instances to crawl and parse a domain's sitemap URLs. This
@@ -90,22 +259,24 @@ class Crawler:
         return accumulator
 
     async def crawl_urls(self, urls):
-        random.shuffle(urls)  # distribute the load between domains
-        queue = deque(urls)
-        capacitator = trio.CapacityLimiter(self.max_requests)
+        queue = deque(random.sample(urls, len(urls)))  # distribute the load between domains
 
-        async def _fetch_async(url, all_done=False):
-            _url = url['url']
+
+        async def _fetch_async(url: Article, all_done=False):
+            _url = url.url
             try:
                 async with httpx.AsyncClient(timeout=60) as client:
                     print(f"[ {get_timestamp()} ] Requesting URL {_url}...")
+                    url.lastcrawled = datetime.datetime.now()
                     response = await client.get(_url, headers=default_headers)
                     print(
                         f"[ {get_timestamp()} ] Received URL {_url} (response length: {len(response.content)} bytes)"
                     )
-                    url['response_code'] = response.status_code
-                    url['content'] = response.content
-                    url['content_length'] = len(response.content)
+                    url.status_code = response.status_code
+                    url.ok = url.status_code == '200'
+                    url.visited = url.ok
+                    url.html = response.content
+                    url.length = len(response.content)
 
                     # Trio coroutines can't return values, so append
                     # the payload to a shared memory buffer instead
@@ -122,6 +293,7 @@ class Crawler:
                `self.max_responses` pending response objects at a given time."""
             curr = 0
             n = len(queue)
+            queue = deque([url for url in queue if url.url not in seen])
             print(f"[ {get_timestamp()} ] Found {n} relevant local URLs.")
             while True:
                 async with trio.open_nursery() as nursery:
@@ -131,10 +303,14 @@ class Crawler:
                         except:
                             print(f"[ {get_timestamp()} ] Scheduling complete.")
                             break
+
+                        seen.add(next_url.url)
                         print(
-                            f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url} ({curr}/{n})"
+                            f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url.url} ({curr}/{n})"
                         )
                         nursery.start_soon(_fetch_async, next_url)
+                if not queue:
+                    break
             return self.chan
 
         return await _initiate_crawl(queue)
@@ -144,23 +320,29 @@ class Crawler:
            embedded json objects from the DOM (possibly an empty list), load those
            data structures into memory, and append them to the response."""
         for response in responses:
-            try:
-                html = response['content']
+            # try:
+                html = response.html
                 tree = parse_html(html)
                 schemata = tree.xpath(
                     "//script[contains(@type, 'json')]/text()")
                 jsonized = []
+                errors = []
                 for schema in schemata:
                     try:
                         jsonized.append(json.loads(schema))
-                    except json.decoder.JSONDecodeError as e:
-                        print(
-                            f"URL {response.url} contains a bad JSON object:")
-                        print(schema)
+                    except Exception as e:
+                        serialized =  [f"{e.__class__.__name__} :: {e}", schema]
+                        errors.append(serialized)
 
-                response['schemata'] = jsonized
-            except Exception as e:
-                print(e.__class__.__name__, e, response)
+
+                response.metadata = {"schemata": jsonized, "errors": errors}
+                response.has_metadata = bool(jsonized)
+                response.metadata_count = len(jsonized)
+
+
+            # except Exception as e:
+            #     print(e.__class__.__name__, e, response)
+            #     response['metadata'] = {"schemata": [], "errors": }
         return responses
 
     async def crawl(self, *kids):
@@ -168,25 +350,35 @@ class Crawler:
            HTTP responses."""
         fetched_urls = await self.crawl_sitemaps(kids)
 
+
+
         relevant_local_urls = [
             url for url in fetched_urls
-            if url['is_relevant'] and url['is_local']
+            if url.url not in seen
         ]
         responses = await self.crawl_urls(relevant_local_urls)
-        parsed = await self.extract_schema_objects(responses)
+        parsed = [obj.parse() for obj in await self.extract_schema_objects(responses)]
+        # seen = set()
+        # deduped = []
+        # for url in fetched_urls:
+        #     if url['url'] in seen:
+        #         continue
+        #     deduped.append(url)
+        #     seen.add(url['url'])
+        crawldb.upsert_many(parsed, ['url'])
 
         #  At this point I would usually write insert the parsed responses into a database,
         #  but to make the code a little easier to distribute, I'm just going to serialize them
         #  to a JSON file
-        with open(f"output.json", "w") as f:
-            data = [{
-                k: v
-                for k, v in obj.items()
-                if k in ("url", "lastmod", "title", "keywords", "description",
-                         "is_local", "is_relevant", "status_code",
-                         "content_length", "ok", "schemata")
-            } for obj in parsed]
-            json.dump({"responses": data}, f, indent=4, sort_keys=True)
+        # with open(f"output.json", "w") as f:
+        #     data = [{
+        #         k: v
+        #         for k, v in obj.items()
+        #         if k in ("url", "lastmod", "title", "keywords", "description",
+        #                  "is_local", "is_relevant", "status_code",
+        #                  "content_length", "ok", "schemata")
+        #     } for obj in parsed]
+        #     json.dump({"responses": data}, f, indent=4, sort_keys=True)
 
 
 class SitemapInfo(Crawler):
@@ -197,6 +389,11 @@ class SitemapInfo(Crawler):
        and it's not unusual for a sitemap to contain millions of URLs.)"""
     def __init__(
             self,
+            city: str,
+            state: str,
+            loc: str,
+            lat: str,
+            long: str,
             domain: str,
             sitemap_urls: list,
             is_local: callable,
@@ -216,7 +413,7 @@ class SitemapInfo(Crawler):
 
     async def update_urls(self):
         ok = await self.async_update()
-        copied = [obj for obj in self.chan]
+        copied = [obj for obj in list(self.chan)]
         self.chan = deque()
         return copied
 
@@ -226,11 +423,13 @@ class SitemapInfo(Crawler):
         async def _fetch(url):
             async with httpx.AsyncClient() as client:
                 responses.append(await client.get(str(url),
-                                                  timeout=60,
+                                                  timeout=120,
                                                   headers=default_headers))
 
-        for sitemap_url in self.urls:
-            async with trio.open_nursery() as nursery:
+        queue = deque(self.urls)
+        async with trio.open_nursery() as nursery:
+            for sitemap_url in self.urls:
+
                 nursery.start_soon(_fetch, sitemap_url)
 
         for res in responses:
@@ -241,16 +440,17 @@ class SitemapInfo(Crawler):
             urls = soup.find_all("url")
             print(urls)
             for url in urls:
-                parsed = SitemapContentLink(url)
-                obj = dict(
-                    parsed.__dict__, **{
-                        "is_local": self.is_local(parsed),
-                        "is_relevant": self.is_relevant(parsed)
-                    })
+                obj = Article(url)
+                # obj = dict(
+                #     parsed.__dict__, **{
+                #         "is_local": self.is_local(parsed),
+                #         "is_relevant": self.is_relevant(parsed)
+                #     })
                 self.chan.append(obj)
-                print(json.dumps(obj, indent=4))
 
-        return sorted(self.chan, key=lambda parsed: parsed['lastmod'])
+                print(json.dumps(obj.__dict__, indent=4, default=str))
+
+        return self.chan
 
     def is_local(self, url):
         return self._is_local(url)
@@ -275,9 +475,9 @@ def tokenize(txt):
 def load_sitemap_urls(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
     news = load_csv(fp)
     loaded = []
-    for row in news:
+    for row in list(news):
         resolved_urls = []
-        for k, v in row.items():
+        for k, v in list(row.items()):
             if not v:
                 continue
             elif k.startswith("sitemap_url_template"):
@@ -285,6 +485,12 @@ def load_sitemap_urls(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv")
                 resolved_urls.append(resolved)
             elif k.startswith("sitemap_url"):
                 resolved_urls.append(v)
+        print(resolved_urls)
+        print(row)
+        url = url_normalize(row['url']).strip().lower()
+        parsed = urlparse(url)
+        row['url'] = url
+        row['site'] = parsed.netloc
         row['sitemap_urls'] = resolved_urls
         loaded.append(row)
     return loaded
@@ -292,10 +498,15 @@ def load_sitemap_urls(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv")
 
 def initialize_crawlers():
     index = {}
-    news = load_sitemap_urls()
+    news = [row for row in load_sitemap_urls() if row['sitemap_urls']]
     # restrict to just the first 5 rows until we hammer out the glitches
-    for row in news[0:5]:
-        index[row['name']] = SitemapInfo(row['url'],
+    for row in random.sample(news, 5):
+        index[row['name']] = SitemapInfo(row['city'],
+                                         row['state'],
+                                         row['loc'],
+                                         row['lat'],
+                                         row['long'],
+                                         row['url'],
                                          row['sitemap_urls'],
                                          is_local=lambda xml: True,
                                          is_relevant=lambda xml: True)
@@ -303,7 +514,7 @@ def initialize_crawlers():
 
 
 # ==================================== CRAWLER OBJECTS =====================================
-
+#
 crawlers = initialize_crawlers()
 # Washington Post
 # wapo = SitemapInfo("washingtonpost.com", [
@@ -385,3 +596,12 @@ crawlers = initialize_crawlers()
 if __name__ == '__main__':
     crawler = Crawler()
     trio.run(crawler.crawl)
+    deduped = deduplicate_table(crawldb)
+    for row in deduped:
+        print(f"=================== Before:  ====================")
+        print(row['before'])
+        print(f"\n\n=================== After:  ====================")
+        print(row['after'])
+
+        print("===============================================")
+

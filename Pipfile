@@ -16,6 +16,12 @@ futures = "*"
 url-normalize = "*"
 cssselect = "*"
 munch = "*"
+dataset = "*"
+psycopg2 = "*"
+fast-bert = "*"
+torch = "*"
+transformers = "*"
+mordecai = "*"
 
 [requires]
 python_version = "3.8"
