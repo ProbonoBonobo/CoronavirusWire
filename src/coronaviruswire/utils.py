@@ -15,6 +15,7 @@ import re
 from src.coronaviruswire.common import db
 from collections import Counter
 
+
 def async_fetch(*urls,
                 max_requests=25,
                 headers=default_headers,
@@ -27,6 +28,7 @@ def async_fetch(*urls,
 
     async def fetch():
         limit = trio.CapacityLimiter(max_requests)
+
         async def async_fetch(url, headers, timeout, **kwargs):
             async with httpx.AsyncClient() as client:
                 chan[url] = await client.get(url,
@@ -72,6 +74,7 @@ def load_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv",
              delimiter="\t"):
     return list(iter_csv(fp, delimiter))
 
+
 def remove_cruft(list_of_articles):
     lines = []
     counts = None
@@ -94,7 +97,10 @@ def remove_cruft(list_of_articles):
 
     return list(reversed(output))
 
+
 from collections import deque
+
+
 def format_text(txt):
     """Go away, weird ASCII unicode transliterations"""
     if isinstance(txt, (list, tuple, set, deque)):
@@ -105,31 +111,41 @@ def format_text(txt):
         # smoosh the lines together without preserving whitespace. Here we check for end punctuation characters
         # that are right adjacent to something that looks like the start of a new line, inserting a space between
         # the two capturing groups when we get a match.
-        html_chars_padded = re.sub(r"(\S?)(&\w+\;)(\S?)", r"\1 \2 \3", txt.strip())
-        padded = re.sub(r"(\S{4,})([\.\!\?]+|\-{3,})(\'?\"?)([A-Z])", r"\1\2 \n \3", unidecode(unescape(html_chars_padded)))
+        html_chars_padded = re.sub(r"(\S?)(&\w+\;)(\S?)", r"\1 \2 \3",
+                                   txt.strip())
+        padded = re.sub(r"(\S{4,})([\.\!\?]+|\-{3,})(\'?\"?)([A-Z])",
+                        r"\1\2 \n \3", unidecode(unescape(html_chars_padded)))
         no_camels = re.sub(r"([a-z]{2,})([A-Z]\w*)", r"\1. \2", padded)
-        no_html_tags = re.sub(r"(\s\<[^\>]*\>\s*|\s{2,})", " ", no_camels).strip()
+        no_html_tags = re.sub(r"(\s\<[^\>]*\>\s*|\s{2,})", " ",
+                              no_camels).strip()
         return no_html_tags
     else:
         return txt
 
+
 def extract_entities(s):
-        days = r"((Mon(d|\s)|Tue|Wed(n|\b)|Thur|Fri|Sat|Sun(\b|d))[\w\.\,]*\s*\d*\s*)|((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z\.]*\s*\d*\s)"
-        cleaned = [re.sub(days, "", tok[0]) for tok in re.findall(
+    days = r"((Mon(d|\s)|Tue|Wed(n|\b)|Thur|Fri|Sat|Sun(\b|d))[\w\.\,]*\s*\d*\s*)|((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z\.]*\s*\d*\s)"
+    cleaned = [
+        re.sub(days, "", tok[0]) for tok in re.findall(
             r"(([A-Z]([a-zA-Z]+|\.|\'|\-\,)+)+(\s[A-Z][a-zA-Z]+)+)|([A-Z]{1,})|([a-zA-Z][A-Z])[a-zA-Z]*[A-Z][a-z]*",
-            unidecode(s)) if tok[0] and len(tok[0]) > 4 and not "\n" in tok]
-        return [tok.strip() for tok in cleaned if '\n' not in tok and len(tok) > 5]
+            unidecode(s)) if tok[0] and len(tok[0]) > 4 and not "\n" in tok
+    ]
+    return [tok.strip() for tok in cleaned if '\n' not in tok and len(tok) > 5]
 
 
 def flatten(alist):
-  for item in alist:
-    if isinstance(item, list):
-      for subitem in item: yield subitem
-    else:
-      yield item
+    for item in alist:
+        if isinstance(item, list):
+            for subitem in item:
+                yield subitem
+        else:
+            yield item
+
 
 import datetime
 from dateutil.parser import parse
+
+
 def parse_schemata(row):
     def dt(timestamp):
         if not timestamp:
@@ -146,27 +162,36 @@ def parse_schemata(row):
             return coll(str(keywords))
         elif isinstance(keywords, str):
             keywords = format_text(keywords)
-            return [re.sub("(^\'|^\"|\'$|\"$)", "", kw.strip()) for kw in
-                    re.split(r"\s*(,|_|\/|\n|\"|\-|.com|\/|\:|\;|\[|\]|\)|\(|\{|\})\s*", keywords) if
-                    len(kw.strip()) > 5]
+            return [
+                re.sub("(^\'|^\"|\'$|\"$)", "", kw.strip()) for kw in re.split(
+                    r"\s*(,|_|\/|\n|\"|\-|.com|\/|\:|\;|\[|\]|\)|\(|\{|\})\s*",
+                    keywords) if len(kw.strip()) > 5
+            ]
         else:
-            raise TypeError(f"Weird type for keywords: {type(keywords).__class__.__name__} :: {keywords}")
+            raise TypeError(
+                f"Weird type for keywords: {type(keywords).__class__.__name__} :: {keywords}"
+            )
 
     metadata = row['metadata']
     objects = metadata['schemata']
 
-    typemap = {'articleBody': str,
-               'headline': str,
-               'description': str,
-               'keywords': coll,
-               'datePublished': dt,
-               'dateModified': dt}
+    typemap = {
+        'articleBody': str,
+        'headline': str,
+        'description': str,
+        'keywords': coll,
+        'datePublished': dt,
+        'dateModified': dt
+    }
 
     target_attributes = set(typemap.keys())
     for obj in flatten(objects):
         found_attrs = list(target_attributes.intersection(obj.keys()))
         tx = [typemap[k] for k in found_attrs]
-        info = {attr: format_text(func(obj[attr])) for attr, func in zip(found_attrs, tx)}
+        info = {
+            attr: format_text(func(obj[attr]))
+            for attr, func in zip(found_attrs, tx)
+        }
         if found_attrs:
             return info
     return {}
@@ -194,6 +219,7 @@ def deduplicate_content(index, max_count=3):
 
     return output
 
+
 def deduplicate_table(tab):
     print(f"Indexing article contents...")
     updates = {row['id']: row['articlebody'] for row in tab}
@@ -206,7 +232,8 @@ if __name__ == '__main__':
     responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
                             "news.ycombinator.com")
     crawldb = db['crawldb']
-    rows = [(row['headline'], row['url'], row['articlebody']) for row in crawldb]
+    rows = [(row['headline'], row['url'], row['articlebody'])
+            for row in crawldb]
     headlines = [row[0] for row in rows]
     articles = [row[-1] for row in rows]
     cleaned = remove_cruft(articles)
@@ -219,13 +246,6 @@ if __name__ == '__main__':
     with open("../../outputs/cleaned.json", "w") as f:
         out = []
         for before, after, headline in zip(articles, cleaned, headlines):
-            obj = {"headline": headline,
-                   "before": before,
-                   "after": after}
+            obj = {"headline": headline, "before": before, "after": after}
             out.append(obj)
         json.dump({"output": out}, f, indent=4)
-
-
-
-
-

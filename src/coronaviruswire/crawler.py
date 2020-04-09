@@ -34,7 +34,6 @@ import time
 seen = set([row['url'] for row in crawldb])
 
 
-
 def get_text_chunks(node):
     def recursively_get_text(node):
         if not node:
@@ -49,22 +48,28 @@ def get_text_chunks(node):
             return node.text
 
     return recursively_get_text(node)
+
+
 import sys
 
 
 def flatten_list(alist):
-  for item in alist:
-    if isinstance(item, list):
-      for subitem in item: yield subitem
-    else:
-      yield item
+    for item in alist:
+        if isinstance(item, list):
+            for subitem in item:
+                yield subitem
+        else:
+            yield item
+
 
 class Article(Munch):
     """URL objects extracted from a sitemap contain usually only a small subset of
        attribute annotations specified by the <urlset> schema, so let's define a
        generic, database-friendly interface."""
 
-    __seen__ = set(seen)  # not really useful currently, but can be initialized from a database table object
+    __seen__ = set(
+        seen
+    )  # not really useful currently, but can be initialized from a database table object
 
     def __init__(self, xml):
         url = xml.find("loc")
@@ -88,7 +93,8 @@ class Article(Munch):
         except:
             pardir = "/"
         self.base_url = f"{parsed.scheme}://{parsed.netloc}{pardir}"
-        self.lastmod = parse_timestamp(format_text(lastmod.text)) if lastmod else None
+        self.lastmod = parse_timestamp(format_text(
+            lastmod.text)) if lastmod else None
         self.headline = format_text(title.text.strip()) if title else ""
         self.keywords = [format_text(kw) for kw in keywords.text.split(",")
                          ] if keywords else []
@@ -102,8 +108,10 @@ class Article(Munch):
         # seen.add(self.url)
         self.articlebody = ""
         self.visited = False
+
     def __repr__(self):
         return json.dumps(self.__dict__, indent=4, default=str)
+
     #
     # def extract_metadata(self):
     #
@@ -198,29 +206,34 @@ class Article(Munch):
     #
     #             print(json.dumps(flat, indent=4, sort_keys=True))
 
-
     def parse(self):
         self.has_metadata = bool(self.metadata['schemata'])
         self.metadata_count = len(self.metadata['schemata'])
         self.visited = bool(self.html)
-        for k,v in parse_schemata(self.__dict__).items():
+        for k, v in parse_schemata(self.__dict__).items():
             setattr(self, k, v)
         try:
             tree = parse_html(self.html, self.base_url)
+
             def find_one(selector):
                 try:
                     return format_text(tree.xpath(selector)[0].text_content())
                 except:
                     return ""
+
             if not self.headline:
                 self.headline = find_one("//h1")
             if not self.articlebody:
-                self.articlebody = '\n'.join([format_text(node.text_content()) for node in tree.xpath("//p")])
+                self.articlebody = '\n'.join([
+                    format_text(node.text_content())
+                    for node in tree.xpath("//p")
+                ])
             print(self.articlebody)
         except Exception as e:
             print(e)
         # self.html = ""
         return self.__dict__
+
 
 def get_timestamp():
     return datetime.datetime.now().strftime("%Y-%m-%d %X")
@@ -260,8 +273,8 @@ class Crawler:
         return accumulator
 
     async def crawl_urls(self, urls):
-        queue = deque(random.sample(urls, len(urls)))  # distribute the load between domains
-
+        queue = deque(random.sample(
+            urls, len(urls)))  # distribute the load between domains
 
         async def _fetch_async(url: Article, all_done=False):
             _url = url.url
@@ -302,7 +315,8 @@ class Crawler:
                         try:
                             next_url = queue.popleft()
                         except:
-                            print(f"[ {get_timestamp()} ] Scheduling complete.")
+                            print(
+                                f"[ {get_timestamp()} ] Scheduling complete.")
                             break
 
                         seen.add(next_url.url)
@@ -322,28 +336,25 @@ class Crawler:
            data structures into memory, and append them to the response."""
         for response in responses:
             # try:
-                html = response.html
-                tree = parse_html(html)
-                schemata = tree.xpath(
-                    "//script[contains(@type, 'json')]/text()")
-                jsonized = []
-                errors = []
-                for schema in schemata:
-                    try:
-                        jsonized.append(json.loads(schema))
-                    except Exception as e:
-                        serialized =  [f"{e.__class__.__name__} :: {e}", schema]
-                        errors.append(serialized)
+            html = response.html
+            tree = parse_html(html)
+            schemata = tree.xpath("//script[contains(@type, 'json')]/text()")
+            jsonized = []
+            errors = []
+            for schema in schemata:
+                try:
+                    jsonized.append(json.loads(schema))
+                except Exception as e:
+                    serialized = [f"{e.__class__.__name__} :: {e}", schema]
+                    errors.append(serialized)
 
+            response.metadata = {"schemata": jsonized, "errors": errors}
+            response.has_metadata = bool(jsonized)
+            response.metadata_count = len(jsonized)
 
-                response.metadata = {"schemata": jsonized, "errors": errors}
-                response.has_metadata = bool(jsonized)
-                response.metadata_count = len(jsonized)
-
-
-            # except Exception as e:
-            #     print(e.__class__.__name__, e, response)
-            #     response['metadata'] = {"schemata": [], "errors": }
+        # except Exception as e:
+        #     print(e.__class__.__name__, e, response)
+        #     response['metadata'] = {"schemata": [], "errors": }
         return responses
 
     async def crawl(self, *kids):
@@ -351,14 +362,13 @@ class Crawler:
            HTTP responses."""
         fetched_urls = await self.crawl_sitemaps(kids)
 
-
-
         relevant_local_urls = [
-            url for url in fetched_urls
-            if url.url not in seen
+            url for url in fetched_urls if url.url not in seen
         ]
         responses = await self.crawl_urls(relevant_local_urls)
-        parsed = [obj.parse() for obj in await self.extract_schema_objects(responses)]
+        parsed = [
+            obj.parse() for obj in await self.extract_schema_objects(responses)
+        ]
         # seen = set()
         # deduped = []
         # for url in fetched_urls:
@@ -606,4 +616,3 @@ if __name__ == '__main__':
         print(row['after'])
 
         print("===============================================")
-
