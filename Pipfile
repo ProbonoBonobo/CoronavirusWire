@@ -21,7 +21,9 @@ psycopg2 = "*"
 fast-bert = "*"
 torch = "*"
 transformers = "*"
-mordecai = "*"
+ptpython = "*"
+psutil = "*"
+requests = "*"
 
 [requires]
 python_version = "3.8"
