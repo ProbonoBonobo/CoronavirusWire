@@ -2,19 +2,74 @@ import re
 import dataset
 import psycopg2
 
-db_config = {"user": "kz",
+<<<<<<< HEAD
+db_config = {
+    "user": "kz",
+    "password": "admin",
+    "host": "127.0.0.1",
+    "port": "5432",
+    "database": "cvwire"
+}
+=======
+db_config = {"user": "ct",
              "password": "admin",
              "host": "127.0.0.1",
              "port": "5432",
              "database": "cvwire"}
+>>>>>>> 5326c3471f57aeee5f9a50ccc2171c3a2fc33b36
 
-db = dataset.connect(f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}")
+db = dataset.connect(
+    f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+)
 conn = psycopg2.connect(**db_config)
 
+
+def create_moderation_table():
+    if 'moderationtable' in db.tables:
+        return
+
+    create_table_query = '''CREATE TABLE moderationtable
+    (ID          SERIAL NOT NULL,
+    ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
+
+    TITLE        VARCHAR(255) NOT NULL,
+    AUTHOR       VARCHAR(255),
+    SOURCE_ID    VARCHAR(255) NOT NULL,
+    ARTICLE_URL  VARCHAR(255),
+    IMAGE_URL    VARCHAR(255),
+    CONTENT      TEXT NOT NULL,
+    SUMMARY      TEXT,
+    CATEGORY     TEXT[],
+
+    POSITIVITY   INT,
+    MOD_STATUS   VARCHAR(255),
+    BOOST_FACTOR FLOAT8,
+    FEATURED     BOOL,
+
+    SPECIFICITY  VARCHAR(255),
+    COUNTRY      VARCHAR(255),
+    REGION       VARCHAR(255),
+    CITY         VARCHAR(255),
+    LATLONG      POINT,
+
+    PUBLISHED_AT TIMESTAMP NOT NULL,
+    CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
+    CREATED_BY   VARCHAR(255),
+    UPDATED_AT   TIMESTAMP DEFAULT NOW(),
+    UPDATED_BY   VARCHAR(255),
+
+    NUM_CLICKS   INT,
+    METADATA     JSON
+    )
+    '''
+    with conn.cursor() as cursor:
+        cursor.execute(create_table_query)
+    conn.commit()
 
 def create_crawldb_table():
     if 'crawldb' in db.tables:
         return
+
     create_table_query = '''CREATE TABLE crawldb
      (id SERIAL PRIMARY KEY,
       name text,
@@ -66,6 +121,7 @@ def create_sitemaps_table():
         cursor.execute(create_table_query)
     conn.commit()
 
+
 # these regex patterns help the sitemap crawler to identify local URLs that are relevant to
 # coronavirus
 patterns = {
@@ -90,5 +146,3 @@ default_headers = {
     "cookie":
     "nyt-a=29482ninwfwe_efw;"
 }
-
-
