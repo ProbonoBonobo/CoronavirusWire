@@ -313,7 +313,7 @@ class Crawler:
             newArticle['source_id'] = parsed['site']
             newArticle['article_url'] = parsed['url']
 
-            if 'articleBody' in parsed:
+            if 'articlebody' in parsed:
                 newArticle['content'] = parsed['articlebody']
             else:
                 print("Warning: skipping due to missing articlebody")
