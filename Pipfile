@@ -24,12 +24,7 @@ transformers = "*"
 ptpython = "*"
 psutil = "*"
 requests = "*"
-<<<<<<< HEAD
 pyclustering = "*"
-=======
-gemeinsprache = "*"
-uuid = "*"
->>>>>>> 5326c3471f57aeee5f9a50ccc2171c3a2fc33b36
 
 [requires]
 python_version = "3.7"
