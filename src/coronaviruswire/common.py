@@ -2,13 +2,17 @@ import re
 import dataset
 import psycopg2
 
-db_config = {"user": "kz",
-             "password": "admin",
-             "host": "127.0.0.1",
-             "port": "5432",
-             "database": "cvwire"}
+db_config = {
+    "user": "kz",
+    "password": "admin",
+    "host": "127.0.0.1",
+    "port": "5432",
+    "database": "cvwire"
+}
 
-db = dataset.connect(f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}")
+db = dataset.connect(
+    f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
+)
 conn = psycopg2.connect(**db_config)
 
 
@@ -66,6 +70,7 @@ def create_sitemaps_table():
         cursor.execute(create_table_query)
     conn.commit()
 
+
 # these regex patterns help the sitemap crawler to identify local URLs that are relevant to
 # coronavirus
 patterns = {
@@ -90,5 +95,3 @@ default_headers = {
     "cookie":
     "nyt-a=29482ninwfwe_efw;"
 }
-
-

@@ -24,6 +24,7 @@ transformers = "*"
 ptpython = "*"
 psutil = "*"
 requests = "*"
+pyclustering = "*"
 
 [requires]
 python_version = "3.8"
