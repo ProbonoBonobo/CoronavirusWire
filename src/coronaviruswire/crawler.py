@@ -328,6 +328,9 @@ class Crawler:
                 print("Warning: skipping due to missing publication_date")
                 continue
 
+            if not newArticle['published_at'] or newArticle['published_at'] == '':
+                continue
+
             newArticle['created_by'] = 'crawler'
 
             if 'city' in parsed:
