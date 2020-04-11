@@ -1,5 +1,5 @@
-from src.coronaviruswire.common import patterns, default_headers, create_sitemaps_table, create_crawldb_table, db
-from src.coronaviruswire.utils import parse_schemata, format_text, deduplicate_content, deduplicate_table
+from src.coronaviruswire.common import patterns, default_headers, create_sitemaps_table, create_crawldb_table, create_moderation_table, db
+from src.coronaviruswire.utils import parse_schemata, format_text, deduplicate_content, deduplicate_moderation_table, deduplicate_table
 from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
 from munch import Munch
@@ -21,10 +21,17 @@ from html import unescape
 import re
 from utils import format_text
 from copy import deepcopy as copy
+import uuid
+from postgresConnection import PostgresConnection
 
-create_crawldb_table()
+# create_crawldb_table()
+create_moderation_table()
+
 create_sitemaps_table()
-crawldb = db['crawldb']
+
+crawldb = db['moderationtable']
+# crawldb = db['crawldb']
+
 sitemapdb = db['sitemaps']
 # crawldb.drop()
 # sitemapdb.drop()
@@ -33,6 +40,7 @@ sitemapdb = db['sitemaps']
 import time
 seen = set([row['url'] for row in crawldb])
 
+googleCloudConn = PostgresConnection()
 
 def get_text_chunks(node):
     def recursively_get_text(node):
@@ -112,100 +120,6 @@ class Article(Munch):
     def __repr__(self):
         return json.dumps(self.__dict__, indent=4, default=str)
 
-    #
-    # def extract_metadata(self):
-    #
-    #         for obj in self.metadata['schemata']:
-    #             print(json.dumps(obj, indent=4))
-    #
-    #         l = flatten_list(self.metadata['schemata'])
-    #         try:
-    #             queue = deque([[obj for obj in l if obj and isinstance(obj, dict) and
-    #                        '@type' in obj and obj['@type']
-    #                        in ("Article", "NewsArticle", "LiveBlogPosting",
-    #                            "BlogPosting")][0]])
-    #         except Exception as e:
-    #             return
-    #
-    #         required_attrs = (
-    #         "articleBody", "articleSection", "headline", "description", "keywords", "datePublished", "dateModified",
-    #         "url", "author", "publisher", "sourceOrganization", "liveBlogUpdate", "hasPart")
-    #         nested_selectors = {"author": ("@id", "name"),
-    #                             "publisher": ("@id", "name"),
-    #                             "sourceOrganization": ("@id", "name"),
-    #                             "hasPart": ("cssSelector",)}
-    #         flat = {}
-    #         while queue:
-    #             obj = queue.popleft()
-    #
-    #             for selector in required_attrs:
-    #
-    #                 exists = selector in obj and selector in flat and flat[selector]
-    #                 flat[f"has_{selector}"] = exists
-    #                 if selector in flat and flat[selector] is not None:
-    #                     continue
-    #                 if not exists:
-    #                     flat[selector] = None
-    #
-    #                 elif selector in nested_selectors:
-    #                     kid_aliases = nested_selectors[selector]
-    #                     ok = False
-    #                     for alias in kid_aliases:
-    #                         try:
-    #                             if isinstance(obj[selector], list):
-    #                                 flat[selector] = ', '.join([child[alias] for child in obj[selector]])
-    #                             elif isinstance(obj[selector], dict):
-    #                                 flat[selector] = obj[selector][alias]
-    #                             ok = True
-    #                         except KeyError as e:
-    #                             print(sys.gettrace())
-    #                     if not ok:
-    #                         print(
-    #                             f"Failed to select {selector} from {type(obj[selector]).__name__} object:\n    {obj[selector]}")
-    #                         # breakpoint()
-    #                 elif selector in obj:
-    #                     flat[selector] = obj[selector]
-    #                 else:
-    #                     continue
-    #
-    #         print(json.dumps(flat, indent=2))
-    #         if not flat:
-    #             return
-    #         if isinstance(flat['articleBody'], list):
-    #             flat['articlebody'] = '\n'.join(flat['articleBody'])
-    #         if flat['has_liveBlogUpdate']:
-    #             queue.extend(obj['liveBlogUpdate'])
-    #
-    #
-    #             #     if article:
-    #             #         obj['articleBody'] = article
-    #             #         obj['has_articleBody'] = True
-    #             # if not obj['has_articleBody']:
-    #             #     article = '\n'.join([node.text_content().strip() for node in dom.cssselect(f"title, h1, p") if
-    #             #                          len(node.text_content().strip()) > 36])
-    #             #     obj['articleBody'] = article
-    #             #     obj['has_articleBody'] = bool(len(article))
-    #             #     print(article)
-    #             # if obj['has_keywords'] and not isinstance(obj['keywords'], str):
-    #             #     obj['keywords'] = ', '.join(obj['keywords'])
-    #
-    #         for k, v in flat.items():
-    #             if v and k in required_attrs and isinstance(v, str):
-    #                 flat[k] = unidecode(unescape(v))
-    #                 if not hasattr(self, k) or not getattr(self, k):
-    #                     setattr(self, k, flat[k])
-    #             # obj['meta'] = {node.attrib['property']: unidecode(unescape(node.attrib['content'])) for node in
-    #             #                dom.xpath("//meta[contains(@property, ':')]")}
-    #             # obj['type'] = obj['@type']
-    #             # obj['location_counts'] = count_location_strings(
-    #             #     f"{obj['headline']} {obj['description']} {obj['meta']} {obj['articleSection']} {obj['articleBody']}") if \
-    #             # obj['has_articleBody'] else {}
-    #             # obj['inferred_location'] = infer_location(obj['location_counts'])
-    #             # obj['inferred_state'] = infer_state(obj['inferred_location'])
-    #             # output.append(obj)
-    #
-    #             print(json.dumps(flat, indent=4, sort_keys=True))
-
     def parse(self):
         self.has_metadata = bool(self.metadata['schemata'])
         self.metadata_count = len(self.metadata['schemata'])
@@ -248,7 +162,7 @@ class Crawler:
     children = weakref.WeakValueDictionary()  # to remember where my kids are
     chan = []  # shared memory buffer for accumulating asynchronous outputs
 
-    max_requests = 50
+    max_requests = 20
 
     async def crawl_sitemaps(self, children=None):
         """Sequentially ask Crawler instances to crawl and parse a domain's sitemap URLs. This
@@ -366,7 +280,7 @@ class Crawler:
             url for url in fetched_urls if url.url not in seen
         ]
         responses = await self.crawl_urls(relevant_local_urls)
-        parsed = [
+        parsedList = [
             obj.parse() for obj in await self.extract_schema_objects(responses)
         ]
         # seen = set()
@@ -376,7 +290,61 @@ class Crawler:
         #         continue
         #     deduped.append(url)
         #     seen.add(url['url'])
-        crawldb.upsert_many(parsed, ['url'])
+
+        # Transform to GCP format
+        print("TTTT 1")
+        print(parsedList)
+
+        newParsedList = []
+        for parsed in parsedList:
+            newArticle = {}
+
+            newArticle['article_id'] = str(uuid.uuid4())
+            if 'headline' in parsed:
+                newArticle['title'] = parsed['headline']
+            else:
+                print("Warning: skipping due to missing headline")
+                continue
+
+            print("GGGG" + newArticle['title'])
+
+            newArticle['author'] = parsed['site']
+            newArticle['source_id'] = parsed['site']
+            newArticle['article_url'] = parsed['url']
+
+            if 'articleBody' in parsed:
+                newArticle['content'] = parsed['articlebody']
+            else:
+                print("Warning: skipping due to missing articlebody")
+                continue
+
+            newArticle['category'] = parsed['keywords']
+            newArticle['mod_status'] = 'pending'
+
+            if 'publication_date' in parsed:
+                newArticle['published_at'] = parsed['publication_date']
+            else:
+                print("Warning: skipping due to missing publication_date")
+                continue
+
+            newArticle['created_by'] = 'crawler'
+
+            if 'city' in parsed:
+                newArticle['city'] = parsed['city']
+
+            if 'state' in parsed:
+                newArticle['region'] = parsed['state']
+
+            metadata = {}
+            if 'metadata' in parsed:
+                newArticle['metadata'] = parsed['metadata']
+
+            print("AAAA Inserting new article " + article_id)
+
+            newParsedList.append(newArticle)
+
+
+        crawldb.upsert_many(newParsedList, ['article_url'])
 
         #  At this point I would usually write insert the parsed responses into a database,
         #  but to make the code a little easier to distribute, I'm just going to serialize them
@@ -483,7 +451,7 @@ def tokenize(txt):
     return punctuation_removed
 
 
-def load_sitemap_urls(fp="../../lib/newspapers.tsv"):
+def load_sitemap_urls(fp="lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = []
@@ -497,6 +465,7 @@ def load_sitemap_urls(fp="../../lib/newspapers.tsv"):
                 resolved_urls.append(resolved)
             elif k.startswith("sitemap_url"):
                 resolved_urls.append(v)
+        print("rrresolved_urls")
         print(resolved_urls)
         print(row)
         url = url_normalize(row['url']).strip().lower()
@@ -512,7 +481,7 @@ def initialize_crawlers():
     index = {}
     news = [row for row in load_sitemap_urls() if row['sitemap_urls']]
     # restrict to just the first 5 rows until we hammer out the glitches
-    for row in random.sample(news, 5):
+    for row in random.sample(news, 3):
         index[row['name']] = SitemapInfo(row['city'],
                                          row['state'],
                                          row['loc'],
@@ -608,7 +577,7 @@ crawlers = initialize_crawlers()
 if __name__ == '__main__':
     crawler = Crawler()
     trio.run(crawler.crawl)
-    deduped = deduplicate_table(crawldb)
+    deduped = deduplicate_moderation_table(crawldb)
     for row in deduped:
         print(f"=================== Before:  ====================")
         print(row['before'])

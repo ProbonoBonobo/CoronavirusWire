@@ -239,6 +239,12 @@ def deduplicate_content(index, max_count=3):
 
     return output
 
+def deduplicate_moderation_table(tab):
+    print(f"Indexing article contents...")
+    updates = {row['id']: row['content'] for row in tab}
+
+    processed = deduplicate_content(updates)
+    return processed
 
 def deduplicate_table(tab):
     print(f"Indexing article contents...")
