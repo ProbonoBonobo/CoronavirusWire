@@ -121,31 +121,36 @@ def format_text(txt):
         return no_html_tags
     else:
         return txt
+
+
 import spacy
 nlp = spacy.load("en_core_web_sm")
 from gemeinsprache.utils import blue, red
+
+
 def extract_entities(s):
-        ents = []
-        doc = nlp(s)
-        for sent in doc.sents:
-            print(sent)
-            for ent in sent.ents:
-                if ent.label_ in (
-                "ORG", "GPE", "LOC", "PERSON", "FAC", "NORP", "WORK_OF_ART", "EVENT", "PRODUCT", "LANGUAGE"):
-                    print(f"        {blue(ent.label_):>16} {red(ent.string)}")
-                if ent.label_ in ("ORG", "GPE", "FAC", "LOC", "NORP", "EVENT"):
-                    ents.append(ent.string)
-                for neighbor in ent.lefts:
-                    if neighbor.string in ents:
-                        ents.append(''.join([ent.string, neighbor.string]))
-        return ents
-    # days = r"((Mon(d|\s)|Tue|Wed(n|\b)|Thur|Fri|Sat|Sun(\b|d))[\w\.\,]*\s*\d*\s*)|((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z\.]*\s*\d*\s)"
-    # cleaned = [
-    #     re.sub(days, "", tok[0]) for tok in re.findall(
-    #         r"(([A-Z]([a-zA-Z]+|\.|\'|\-\,)+)+(\s[A-Z][a-zA-Z]+)+)|([A-Z]{1,})|([a-zA-Z][A-Z])[a-zA-Z]*[A-Z][a-z]*",
-    #         unidecode(s)) if tok[0] and len(tok[0]) > 4 and not "\n" in tok
-    # ]
-    # return [tok.strip() for tok in cleaned if '\n' not in tok and len(tok) > 5]
+    ents = []
+    doc = nlp(s)
+    for sent in doc.sents:
+        print(sent)
+        for ent in sent.ents:
+            if ent.label_ in ("ORG", "GPE", "LOC", "PERSON", "FAC", "NORP",
+                              "WORK_OF_ART", "EVENT", "PRODUCT", "LANGUAGE"):
+                print(f"        {blue(ent.label_):>16} {red(ent.string)}")
+            if ent.label_ in ("ORG", "GPE", "FAC", "LOC", "NORP", "EVENT"):
+                ents.append(ent.string)
+            for neighbor in ent.lefts:
+                if neighbor.string in ents:
+                    ents.append(''.join([ent.string, neighbor.string]))
+    return ents
+
+# days = r"((Mon(d|\s)|Tue|Wed(n|\b)|Thur|Fri|Sat|Sun(\b|d))[\w\.\,]*\s*\d*\s*)|((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z\.]*\s*\d*\s)"
+# cleaned = [
+#     re.sub(days, "", tok[0]) for tok in re.findall(
+#         r"(([A-Z]([a-zA-Z]+|\.|\'|\-\,)+)+(\s[A-Z][a-zA-Z]+)+)|([A-Z]{1,})|([a-zA-Z][A-Z])[a-zA-Z]*[A-Z][a-z]*",
+#         unidecode(s)) if tok[0] and len(tok[0]) > 4 and not "\n" in tok
+# ]
+# return [tok.strip() for tok in cleaned if '\n' not in tok and len(tok) > 5]
 
 
 def flatten(alist):

@@ -32,11 +32,12 @@ plotly.io.orca.config.mapbox_access_token = 'sk.eyJ1IjoibmVvbmNvbnRyYWlscyIsImEi
 plotly.io.orca.config.save()
 local = None
 
-def similarity(a,b):
-    ratio = fuzz.ratio(a,b)
-    dist = damerau_levenshtein(a,b)
-    diff_len = abs(len(a)-len(b))
-    len_penalty = log(len(a)/(1 + diff_len))
+
+def similarity(a, b):
+    ratio = fuzz.ratio(a, b)
+    dist = damerau_levenshtein(a, b)
+    diff_len = abs(len(a) - len(b))
+    len_penalty = log(len(a) / (1 + diff_len))
     #penalty = 0.5 + 1/log(1 + dist)
 
     score = ratio
@@ -89,12 +90,13 @@ async def search_for_place_async(place_name, location=None, radius=300):
         dist = 0
         bias = {"lat": None, "long": None, "radius": None}
     import math
-    distance_to_here = geodesic(c1, coords['North Park, San Diego, California, USA'][0])
+    distance_to_here = geodesic(
+        c1, coords['North Park, San Diego, California, USA'][0])
     if dist and distance_to_here.kilometers < 500:
-        penalty = 0.1 #math.log(dist.kilometers, distance_to_here.kilometers)
+        penalty = 0.1  #math.log(dist.kilometers, distance_to_here.kilometers)
     else:
         penalty = 1
-    final_score =  sim.score
+    final_score = sim.score
 
     obj = Munch({
         "ok": True,
@@ -114,6 +116,8 @@ async def search_for_place_async(place_name, location=None, radius=300):
     })
     print(json.dumps(obj, indent=4))
     return obj
+
+
 #
 #
 # def extract_entities(s):
@@ -144,6 +148,7 @@ async def locate_all(entities, origin):
 
         if ent.ok and ent.score >= 80 and ent.edit_distance < 8:
             geo_ents[entity] = ent
+
     queue = deque(entities)
     while queue:
         async with trio.open_nursery() as nursery:
@@ -185,25 +190,39 @@ async def prepare_geo_points(geo_ents, origin, counts):
 
         else:
             count = counts[k]
-            color = colors[min(count, len(colors)-1)]
+            color = colors[min(count, len(colors) - 1)]
             points.append(v.center)
             hyp = geodesic(*v.diag)
             weights.append(hyp.km)
             labels.append(v.name)
             queries.append(k)
             dists.append(geodesic(tuple(v.center), origin))
-            trace = go.Scattergeo({"locationmode": "USA-states",
-                           "lon": [v.long],
-                           "lat": [v.lat],
-                           "name": v.name,
-                            "type": "scattergeo",
-                           "text": [f"String: {v.query}<br>Entity: {v.name}<br>Address: {v.address}<br>Occurrences: {count}"],
-                           "marker" : {"size": math.sqrt(float(math.pi*pow(hyp.kilometers, 2)/scale))+50,
-
-                                       "color": color,
-                                       "line_color": 'rgb(40,40,40)',
-                                        "line_width": 0.5,
-                                         "sizemode": 'area'}})
+            trace = go.Scattergeo({
+                "locationmode":
+                "USA-states",
+                "lon": [v.long],
+                "lat": [v.lat],
+                "name":
+                v.name,
+                "type":
+                "scattergeo",
+                "text": [
+                    f"String: {v.query}<br>Entity: {v.name}<br>Address: {v.address}<br>Occurrences: {count}"
+                ],
+                "marker": {
+                    "size":
+                    math.sqrt(float(math.pi * pow(hyp.kilometers, 2) / scale))
+                    + 50,
+                    "color":
+                    color,
+                    "line_color":
+                    'rgb(40,40,40)',
+                    "line_width":
+                    0.5,
+                    "sizemode":
+                    'area'
+                }
+            })
             traces.append(trace)
             print(trace)
     traces = sorted(traces, key=lambda obj: obj['marker']['size'])
@@ -238,6 +257,7 @@ def cluster(points):
 
     return clusters
 
+
 def get_convex_hull(clusters):
     polygons = []
     for points in clusters:
@@ -252,6 +272,7 @@ def get_convex_hull(clusters):
             print(e)
     return polygons
 
+
 def plot_bubblemap(traces, row):
     global fig
     fig = go.Figure()
@@ -259,16 +280,24 @@ def plot_bubblemap(traces, row):
         print(trace)
         fig.add_trace(trace)
     fig.update_layout(
-        title_text=f"Article #{row['id']}<br>{row['headline']}<br>({row['site']})",
+        title_text=
+        f"Article #{row['id']}<br>{row['headline']}<br>({row['site']})",
         showlegend=True,
         geo=dict(
             scope='usa',
             landcolor='rgb(217, 217, 217)',
-        )
-    )
+        ),
+        margin={
+            'l': 0,
+            'r': 0,
+            'b': 0,
+            't': 0
+        })
+
     print(fig)
     # fig.show()
     return fig
+
 
 def plot_clusters(latitudes, longitudes, origin):
     lat, long = origin
@@ -317,7 +346,8 @@ async def process_row(row):
     global clusters
 
     global polygons
-    local = await search_for_place_async("North Park, San Diego, California, USA")
+    local = await search_for_place_async(
+        "North Park, San Diego, California, USA")
 
     origin = f"{row['loc']}, USA"
     text = '\n\n'.join([
@@ -343,7 +373,8 @@ async def process_row(row):
 if __name__ == '__main__':
     from src.coronaviruswire.common import db
     crawldb = db['crawldb']
-    rows = random.sample([row for row in crawldb.find() if 'dallas' not in row['site']], 30)
+    rows = random.sample(
+        [row for row in crawldb.find() if 'dallas' not in row['site']], 1000)
     for row in rows:
 
         trio.run(process_row, row)
@@ -357,16 +388,20 @@ if __name__ == '__main__':
             print(fig)
             # row['clusters'] = clusters
 
-            with open(f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.json", "w") as f:
+            with open(
+                    f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.json",
+                    "w") as f:
                 json.dump(row, f, default=str)
             if fig:
-                fig.write_image(f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.png",
-                                width=2000,
-                                height=1230)
-                fig.show()
-                fig.write_html(f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.html")
+                fig.write_image(
+                    f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.png",
+                    width=2000,
+                    height=1230)
+                fig.write_html(
+                    f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.html"
+                )
         except Exception as e:
             print(e)
             print(f"No figure for row:")
-            for k,v in row.items():
+            for k, v in row.items():
                 print(k, v)
