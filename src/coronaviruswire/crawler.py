@@ -237,6 +237,8 @@ class Crawler:
                         print(
                             f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url.url} ({curr}/{n})"
                         )
+                        # crawldb.upsert_many(self.chan, ['article_url'])
+                        # self.chan = []
                         nursery.start_soon(_fetch_async, next_url)
                 if not queue:
                     break

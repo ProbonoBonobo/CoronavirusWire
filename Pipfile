@@ -26,6 +26,7 @@ psutil = "*"
 requests = "*"
 gemeinsprache = "*"
 uuid = "*"
+pyclustering = "*"
 
 [requires]
 python_version = "3.7"
