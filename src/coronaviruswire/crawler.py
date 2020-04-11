@@ -299,7 +299,8 @@ class Crawler:
         for parsed in parsedList:
             newArticle = {}
 
-            newArticle['article_id'] = str(uuid.uuid4())
+            article_id = str(uuid.uuid4())
+            newArticle['article_id'] = article_id
             if 'headline' in parsed:
                 newArticle['title'] = parsed['headline']
             else:
@@ -481,7 +482,7 @@ def initialize_crawlers():
     index = {}
     news = [row for row in load_sitemap_urls() if row['sitemap_urls']]
     # restrict to just the first 5 rows until we hammer out the glitches
-    for row in random.sample(news, 3):
+    for row in random.sample(news, 2):
         index[row['name']] = SitemapInfo(row['city'],
                                          row['state'],
                                          row['loc'],
