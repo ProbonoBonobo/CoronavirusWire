@@ -32,6 +32,7 @@ pylev = "*"
 plotly = "*"
 fuzzywuzzy = "*"
 geopy = "*"
+termcolor = "*"
 
 [requires]
 python_version = "3.7"
