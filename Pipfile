@@ -25,6 +25,13 @@ ptpython = "*"
 psutil = "*"
 requests = "*"
 pyclustering = "*"
+shapely = "*"
+more-itertools = "*"
+gemeinsprache = "*"
+pylev = "*"
+plotly = "*"
+fuzzywuzzy = "*"
+geopy = "*"
 
 [requires]
 python_version = "3.7"
