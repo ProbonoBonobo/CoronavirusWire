@@ -4,12 +4,14 @@ from itertools import combinations
 from collections import deque
 from more_itertools import grouper
 from shapely.geometry import Polygon
+from gemeinsprache.utils import red
 from src.coronaviruswire.utils import extract_entities
 from pyclustering.cluster.clarans import clarans
 from pyclustering.utils import timedcall
 from pylev import damerau_levenshtein
 from sklearn.cluster import KMeans
 from collections import defaultdict
+
 import json
 import math
 from urllib.parse import quote_plus
@@ -43,7 +45,7 @@ local = None
 
 
 def similarity(a, b):
-    ratio = fuzz.partial_ratio(a, b)
+    ratio = fuzz.ratio(a, b)
     dist = damerau_levenshtein(a, b)
     diff_len = abs(len(a) - len(b))
     len_penalty = log(len(a) / (1 + diff_len))
@@ -55,7 +57,7 @@ def similarity(a, b):
 
 def intersect_circles(centers, radii):
     try:
-        circles = [Point(*center).buffer(1) for center, radius in zip(centers, radii)]
+        circles = [Point(*center).buffer(math.sqrt(radius/2/110)) for center, radius in zip(centers, radii)]
         listpoly = [a.intersection(b) for a, b in combinations(circles, 2)]  # list of intersections
         rings = [sg.LineString(list(pol.exterior.coords)) for pol in listpoly]  # list of rings
 
@@ -101,16 +103,21 @@ def intersect_circles(centers, radii):
             ys, xs = [arr.tolist() for arr in multi.exterior.xy]
             xs = [a for a,b,c,d,e,f,g,h in grouper(xs, 8)]
             ys = [a for a,b,c,d,e,f,g,h in grouper(ys, 8)]
-            centroid = [reversed(list(multi.centroid.coords)[0])]
-        except:
+            centroid = [list(reversed(list(multi.centroid.coords)[0]))]
+            xs.append(xs[0])
+            ys.append(ys[0])
+        except Exception as e:
+            # out = input(f"{e.__class__.__name__}: {e}")
+            # breakpoint()
             hull = []
             xs, ys = [], []
             centroid = []
 
             for poly in multi:
-                hull.extend(poly.exterior.coords)
-                hull.extend([poly.exterior.coords[0], None])
-                _ys, _xs = [arr.tolist for arr in poly.exterior.xy]
+                coords = list(poly.exterior.coords)
+                hull.extend(coords)
+                hull.extend([coords[0], None])
+                _ys, _xs = [arr.tolist() for arr in poly.exterior.xy]
                 _xs = [a for a,b,c,d,e,f,g,h in grouper(_xs, 8)]
                 _ys = [a for a,b,c,d,e,f,g,h in grouper(_ys, 8)]
                 xs.extend(_xs)
@@ -118,7 +125,7 @@ def intersect_circles(centers, radii):
                 ys.extend(_ys)
                 ys.extend([_ys[0], None])
 
-                centroid.append(reversed(list(poly.centroid.coords[0])))
+                centroid.append(list(reversed(list(poly.centroid.coords[0]))))
     except Exception as e:
         print(f"Centers: {centers}\nRadii: {radii}")
         print(e)
@@ -153,12 +160,12 @@ async def search_for_place_async(place_name, location=None, radius=300):
     s = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={query}{location_bias}&fields=formatted_address,name,opening_hours,geometry&inputtype=textquery&key=AIzaSyALE94yjbDhNRZbigm6xnaDnnSIe4Vlw00"
     async with httpx.AsyncClient() as client:
         res = await client.get(s)
-        print(res.json())
+        # print(res.json())
     try:
         candidate = res.json()['candidates'][0]
     except Exception as e:
-        print(e)
-        print(res.json())
+        # print(e)
+        # print(res.json())
         return Munch({"ok": False, "center": None, "similarity": 0.0})
     c1 = list(candidate['geometry']['location'].values())
     diag1 = [(v['lat'], v['lng'])
@@ -199,7 +206,7 @@ async def search_for_place_async(place_name, location=None, radius=300):
         "score": final_score * penalty,
         "bias": bias
     })
-    print(json.dumps(obj, indent=4))
+    # print(json.dumps(obj, indent=4))
     return obj
 
 
@@ -282,7 +289,9 @@ async def prepare_geo_points(geo_ents, origin, counts):
             radius = hyp.kilometers
             area = math.sqrt(float(math.pi * pow(hyp.kilometers, 2) / scale)) + 50
             sizes.append(radius)
-            points.append(v.center)
+            for i in range(counts[k]):
+                points.append(v.center)
+                sizes.append(radius)
             weights.append(hyp.km)
             labels.append(v.name)
             queries.append(k)
@@ -313,7 +322,7 @@ async def prepare_geo_points(geo_ents, origin, counts):
                 }
             })
             traces.append(bubble_trace)
-            print(bubble_trace)
+            # print(bubble_trace)
     bubble_traces = sorted(traces, key=lambda obj: obj['marker']['size'])
     intersection = intersect_circles(points, sizes)
 
@@ -354,7 +363,7 @@ def cluster(points):
 def get_convex_hull(clusters):
     polygons = []
     for points in clusters:
-        print(points)
+        # print(points)
         try:
             polygon = []
             for point in points:
@@ -371,7 +380,7 @@ def plot_bubblemap(traces, row):
     fig = None
     fig = go.Figure()
     for trace in traces:
-        print(trace)
+        # print(trace)
         fig.add_trace(trace)
     fig.update_layout(
         title_text=
@@ -388,7 +397,7 @@ def plot_bubblemap(traces, row):
             't': 0
         })
 
-    print(fig)
+    # print(fig)
     # fig.show()
     return fig
 
@@ -398,7 +407,11 @@ def plot_intersection(map_data):
         return
     latitudes = map_data.intersection.xs
     longitudes = map_data.intersection.ys
-    center_lat, center_long = map_data.intersection.centroids[0]
+    try:
+        center_lat, center_long = map_data.intersection.centroids[0]
+    except:
+        print(red(f"\n\n\n\nNo center coords!\n\n"))
+        print(json.dumps(map_data, indent=4, default=str))
     fig2 = go.Figure(
         go.Scattermapbox(mode="lines",
                          fill="toself",
@@ -419,7 +432,7 @@ def plot_intersection(map_data):
             'b': 0,
             't': 0
         })
-    fig2.show()
+    # fig2.show()
 
 def plot_clusters(latitudes, longitudes, origin):
     lat, long = origin
@@ -462,57 +475,49 @@ def vectorize_coords(geometries):
     return lat, long
 
 
-async def process_row(row):
+async def process_row(rows):
     global geo_ents
     global map_data
     global clusters
+    import os
+    global fig
+    global fig2
+    global coords
+    global geo_ents
+    global map_data
 
     global polygons
-    fig = None
-    local = await search_for_place_async(
-        "North Park, San Diego, California, USA")
-
-    origin = f"{row['loc']}, USA"
-    text = '\n\n'.join([
-        str(x) for x in [
-            row['headline'], row['description'], row['articlebody'],
-            row['keywords']
-        ]
-    ])
-    ents = extract_entities(text)
-    counts = {ent: text.count(ent) for ent in ents}
-    geo_ents = await locate_all(ents, origin)
-    map_data = await prepare_geo_points(geo_ents, origin, counts)
-    if not map_data or len(map_data.points) < 5:
-        return
-    # clusters = cluster(map_data.points)
-    # polygons = get_convex_hull(clusters)
-    # start_coords = list(reversed(coords[origin][0]))
-    # latitude_vec, longitude_vec = vectorize_coords(polygons)
-    # plot_clusters(latitude_vec, longitude_vec, start_coords)
-    plot_bubblemap(map_data.traces, row)
-
-    plot_intersection(map_data)
-
-
-
-
-if __name__ == '__main__':
-    from src.coronaviruswire.common import db
-    crawldb = db['crawldb']
-    rows = random.sample(
-        [row for row in crawldb.find() if 'dallas' not in row['site']], 1000)
     for row in rows:
         fig2 = None
         fig = None
-        fig2 = None
         coords = {}
         geo_ents = {}
+        map_data = Munch()
+        fig = None
+        local = await search_for_place_async(
+            "North Park, San Diego, California, USA")
 
+        origin = f"{row['loc']}, USA"
+        text = '\n\n'.join([
+            str(x) for x in [
+                row['headline'], row['description'], row['articlebody'],
+                row['keywords']
+            ]
+        ])
+        ents = extract_entities(text)
+        counts = {ent: text.count(ent) for ent in ents}
+        geo_ents = await locate_all(ents, origin)
+        map_data = await prepare_geo_points(geo_ents, origin, counts)
+        if not map_data or len(map_data.points) < 5:
+            return
+        # clusters = cluster(map_data.points)
+        # polygons = get_convex_hull(clusters)
+        # start_coords = list(reversed(coords[origin][0]))
+        # latitude_vec, longitude_vec = vectorize_coords(polygons)
+        # plot_clusters(latitude_vec, longitude_vec, start_coords)
+        plot_bubblemap(map_data.traces, row)
 
-        map_data = {}
-
-        trio.run(process_row, row)
+        plot_intersection(map_data)
         print(row['headline'])
         print(row['description'])
         print(row['articlebody'])
@@ -521,33 +526,49 @@ if __name__ == '__main__':
             row['extracted_features'] = geo_ents
             row['map_data'] = map_data
             print(fig)
-            if fig:
-                fig.show()
-            if fig and not fig2:
-                print(fig)
-                print(fig2)
-                pass
-            if fig2 and map_data and map_data.intersection:
-                fig2.show()
 
+            # if fig:
+            #     fig.show()
+            #
+            # if fig2 and map_data and map_data.intersection:
+            #     fig2.show()
             # row['clusters'] = clusters
-
+            dirname = f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}"
+            os.makedirs(dirname)
             with open(
-                    f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.json",
+                    f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}/data.json",
                     "w") as f:
                 json.dump(row, f, default=str)
-            # if fig:
-                # fig.write_image(
-                #     f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.png",
-                #     width=2000,
-                #     height=1230)
-                # fig.write_html(
-                #     f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.html"
-                # )
-                # fig.show()
+            if fig:
+                fig.write_image(
+                    os.path.join(dirname, "bubble.png"),
+                    width=1000,
+                    height=618)
+                fig.write_html(
+                    os.path.join(dirname, "bubble.html")
+                )
+            if fig2:
+                fig2.write_image(
+                    os.path.join(dirname, "intersection.png"),
+                    width=1000,
+                    height=618
+                )
+                fig2.write_html(
+                    os.path.join(dirname, "intersection.html"))
+
         except Exception as e:
             print(e)
             print(f"No figure for row:")
             for k, v in row.items():
                 print(k, v)
             print("ok")
+
+
+if __name__ == '__main__':
+
+    from src.coronaviruswire.common import db
+    crawldb = db['crawldb']
+    rows = random.sample(
+        [row for row in crawldb.find() if 'dallas' not in row['site'] and len(row['articlebody']) > 300], 100)
+
+    trio.run(process_row, rows)
