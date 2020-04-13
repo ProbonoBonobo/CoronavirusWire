@@ -40,7 +40,8 @@ def create_moderation_table():
     COUNTRY      VARCHAR(255),
     REGION       VARCHAR(255),
     CITY         VARCHAR(255),
-    LATLONG      POINT,
+    LATITUDE     FLOAT8,
+    LONGITUDE    FLOAT8,
 
     PUBLISHED_AT TIMESTAMP NOT NULL,
     CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),

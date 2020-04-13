@@ -38,7 +38,7 @@ sitemapdb = db['sitemaps']
 # create_crawldb_table()
 # create_sitemaps_table()
 import time
-seen = set([row['url'] for row in crawldb])
+seen = set([row['article_url'] for row in crawldb])
 
 googleCloudConn = PostgresConnection()
 
@@ -237,8 +237,10 @@ class Crawler:
                         print(
                             f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url.url} ({curr}/{n})"
                         )
-                        # crawldb.upsert_many(self.chan, ['article_url'])
-                        # self.chan = []
+
+                        print("upserting many:")
+                        self.upsert_many_with_data_transform(self.chan)
+                        self.chan = []
                         nursery.start_soon(_fetch_async, next_url)
                 if not queue:
                     break
@@ -246,54 +248,8 @@ class Crawler:
 
         return await _initiate_crawl(queue)
 
-    async def extract_schema_objects(self, responses):
-        """Iterate through a collection of HTTP response objects, extract any
-           embedded json objects from the DOM (possibly an empty list), load those
-           data structures into memory, and append them to the response."""
-        for response in responses:
-            # try:
-            html = response.html
-            tree = parse_html(html)
-            schemata = tree.xpath("//script[contains(@type, 'json')]/text()")
-            jsonized = []
-            errors = []
-            for schema in schemata:
-                try:
-                    jsonized.append(json.loads(schema))
-                except Exception as e:
-                    serialized = [f"{e.__class__.__name__} :: {e}", schema]
-                    errors.append(serialized)
 
-            response.metadata = {"schemata": jsonized, "errors": errors}
-            response.has_metadata = bool(jsonized)
-            response.metadata_count = len(jsonized)
-
-        # except Exception as e:
-        #     print(e.__class__.__name__, e, response)
-        #     response['metadata'] = {"schemata": [], "errors": }
-        return responses
-
-    async def crawl(self, *kids):
-        """Crawl sitemaps, then urls, then finally extract schema objects from the
-           HTTP responses."""
-        fetched_urls = await self.crawl_sitemaps(kids)
-
-        relevant_local_urls = [
-            url for url in fetched_urls if url.url not in seen
-        ]
-        responses = await self.crawl_urls(relevant_local_urls)
-        parsedList = [
-            obj.parse() for obj in await self.extract_schema_objects(responses)
-        ]
-        # seen = set()
-        # deduped = []
-        # for url in fetched_urls:
-        #     if url['url'] in seen:
-        #         continue
-        #     deduped.append(url)
-        #     seen.add(url['url'])
-
-        # Transform to GCP format
+    def upsert_many_with_data_transform(self, parsedList):
         print("TTTT 1")
         print(parsedList)
 
@@ -349,8 +305,59 @@ class Crawler:
 
             newParsedList.append(newArticle)
 
-
         crawldb.upsert_many(newParsedList, ['article_url'])
+
+
+    async def extract_schema_objects(self, responses):
+        """Iterate through a collection of HTTP response objects, extract any
+           embedded json objects from the DOM (possibly an empty list), load those
+           data structures into memory, and append them to the response."""
+        for response in responses:
+            # try:
+            html = response.html
+            tree = parse_html(html)
+            schemata = tree.xpath("//script[contains(@type, 'json')]/text()")
+            jsonized = []
+            errors = []
+            for schema in schemata:
+                try:
+                    jsonized.append(json.loads(schema))
+                except Exception as e:
+                    serialized = [f"{e.__class__.__name__} :: {e}", schema]
+                    errors.append(serialized)
+
+            response.metadata = {"schemata": jsonized, "errors": errors}
+            response.has_metadata = bool(jsonized)
+            response.metadata_count = len(jsonized)
+
+        # except Exception as e:
+        #     print(e.__class__.__name__, e, response)
+        #     response['metadata'] = {"schemata": [], "errors": }
+        return responses
+
+    async def crawl(self, *kids):
+        """Crawl sitemaps, then urls, then finally extract schema objects from the
+           HTTP responses."""
+        fetched_urls = await self.crawl_sitemaps(kids)
+
+        relevant_local_urls = [
+            url for url in fetched_urls if url.url not in seen
+        ]
+        responses = await self.crawl_urls(relevant_local_urls)
+        parsedList = [
+            obj.parse() for obj in await self.extract_schema_objects(responses)
+        ]
+        # seen = set()
+        # deduped = []
+        # for url in fetched_urls:
+        #     if url['url'] in seen:
+        #         continue
+        #     deduped.append(url)
+        #     seen.add(url['url'])
+
+        # Transform to GCP format
+        self.upsert_many_with_data_transform(parsedList)
+
 
         #  At this point I would usually write insert the parsed responses into a database,
         #  but to make the code a little easier to distribute, I'm just going to serialize them
