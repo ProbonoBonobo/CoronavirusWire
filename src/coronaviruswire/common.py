@@ -2,13 +2,6 @@ import re
 import dataset
 import psycopg2
 
-    "host": "127.0.0.1",
-db_config = {
-    "user": "kz",
-    "password": "admin",
-    "port": "5432",
-}
-    "database": "cvwire"
 db_config = {"user": "ct",
              "password": "admin",
              "host": "127.0.0.1",
@@ -39,15 +32,16 @@ def create_moderation_table():
     CATEGORY     TEXT[],
 
     POSITIVITY   INT,
-    MOD_STATUS   VARCHAR(255),
+    MOD_STATUS   VARCHAR(255) DEFAULT 'pending',
     BOOST_FACTOR FLOAT8,
-    FEATURED     BOOL,
+    FEATURED     BOOL DEFAULT FALSE,
 
     SPECIFICITY  VARCHAR(255),
     COUNTRY      VARCHAR(255),
     REGION       VARCHAR(255),
     CITY         VARCHAR(255),
-    LATLONG      POINT,
+    LATITUDE     FLOAT8,
+    LONGITUDE    FLOAT8,
 
     PUBLISHED_AT TIMESTAMP NOT NULL,
     CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -55,7 +49,7 @@ def create_moderation_table():
     UPDATED_AT   TIMESTAMP DEFAULT NOW(),
     UPDATED_BY   VARCHAR(255),
 
-    NUM_CLICKS   INT,
+    NUM_CLICKS   INT DEFAULT 0,
     METADATA     JSON
     )
     '''

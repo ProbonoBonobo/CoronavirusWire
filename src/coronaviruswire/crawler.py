@@ -38,7 +38,7 @@ sitemapdb = db['sitemaps']
 # create_crawldb_table()
 # create_sitemaps_table()
 import time
-seen = set([row['url'] for row in crawldb])
+seen = set([row['article_url'] for row in crawldb])
 
 googleCloudConn = PostgresConnection()
 
@@ -237,7 +237,9 @@ class Crawler:
                         print(
                             f"[ {get_timestamp()} ] Scheduling crawl of URL {next_url.url} ({curr}/{n})"
                         )
-                        crawldb.upsert_many(self.chan)
+
+                        print("upserting many:")
+                        self.upsert_many_with_data_transform(self.chan)
                         self.chan = []
                         nursery.start_soon(_fetch_async, next_url)
                 if not queue:
@@ -245,6 +247,66 @@ class Crawler:
             return self.chan
 
         return await _initiate_crawl(queue)
+
+
+    def upsert_many_with_data_transform(self, parsedList):
+        print("TTTT 1")
+        print(parsedList)
+
+        newParsedList = []
+        for parsed in parsedList:
+            newArticle = {}
+
+            article_id = str(uuid.uuid4())
+            newArticle['article_id'] = article_id
+            if 'headline' in parsed:
+                newArticle['title'] = parsed['headline']
+            else:
+                print("Warning: skipping due to missing headline")
+                continue
+
+            print("GGGG" + newArticle['title'])
+
+            newArticle['author'] = parsed['site']
+            newArticle['source_id'] = parsed['site']
+            newArticle['article_url'] = parsed['url']
+
+            if 'articlebody' in parsed:
+                newArticle['content'] = parsed['articlebody']
+            else:
+                print("Warning: skipping due to missing articlebody")
+                continue
+
+            newArticle['category'] = parsed['keywords']
+            newArticle['mod_status'] = 'pending'
+
+            if 'publication_date' in parsed:
+                newArticle['published_at'] = parsed['publication_date']
+            else:
+                print("Warning: skipping due to missing publication_date")
+                continue
+
+            if not newArticle['published_at'] or newArticle['published_at'] == '':
+                continue
+
+            newArticle['created_by'] = 'crawler'
+
+            if 'city' in parsed:
+                newArticle['city'] = parsed['city']
+
+            if 'state' in parsed:
+                newArticle['region'] = parsed['state']
+
+            metadata = {}
+            if 'metadata' in parsed:
+                newArticle['metadata'] = parsed['metadata']
+
+            print("AAAA Inserting new article " + article_id)
+
+            newParsedList.append(newArticle)
+
+        crawldb.upsert_many(newParsedList, ['article_url'])
+
 
     async def extract_schema_objects(self, responses):
         """Iterate through a collection of HTTP response objects, extract any
@@ -294,59 +356,8 @@ class Crawler:
         #     seen.add(url['url'])
 
         # Transform to GCP format
-        print("TTTT 1")
-        print(parsedList)
+        self.upsert_many_with_data_transform(parsedList)
 
-        newParsedList = []
-        for parsed in parsedList:
-            newArticle = {}
-
-            newArticle['article_id'] = str(uuid.uuid4())
-            if 'headline' in parsed:
-                newArticle['title'] = parsed['headline']
-            else:
-                print("Warning: skipping due to missing headline")
-                continue
-
-            print("GGGG" + newArticle['title'])
-
-            newArticle['author'] = parsed['site']
-            newArticle['source_id'] = parsed['site']
-            newArticle['article_url'] = parsed['url']
-
-            if 'articleBody' in parsed:
-                newArticle['content'] = parsed['articlebody']
-            else:
-                print("Warning: skipping due to missing articlebody")
-                continue
-
-            newArticle['category'] = parsed['keywords']
-            newArticle['mod_status'] = 'pending'
-
-            if 'publication_date' in parsed:
-                newArticle['published_at'] = parsed['publication_date']
-            else:
-                print("Warning: skipping due to missing publication_date")
-                continue
-
-            newArticle['created_by'] = 'crawler'
-
-            if 'city' in parsed:
-                newArticle['city'] = parsed['city']
-
-            if 'state' in parsed:
-                newArticle['region'] = parsed['state']
-
-            metadata = {}
-            if 'metadata' in parsed:
-                newArticle['metadata'] = parsed['metadata']
-
-            print("AAAA Inserting new article " + article_id)
-
-            newParsedList.append(newArticle)
-
-
-        crawldb.upsert_many(newParsedList, ['article_url'])
 
         #  At this point I would usually write insert the parsed responses into a database,
         #  but to make the code a little easier to distribute, I'm just going to serialize them
@@ -453,7 +464,7 @@ def tokenize(txt):
     return punctuation_removed
 
 
-def load_sitemap_urls(fp="../../lib/newspapers.tsv"):
+def load_sitemap_urls(fp="lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = []
