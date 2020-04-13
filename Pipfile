@@ -27,6 +27,7 @@ requests = "*"
 gemeinsprache = "*"
 uuid = "*"
 pyclustering = "*"
+python-crontab = "*"
 
 [requires]
 python_version = "3.7"

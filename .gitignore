@@ -1,0 +1,9 @@
+.DS_Store
+node_modules
+package-lock.json
+*.zip
+*.pyc
+v-env/
+__pycache__/
+/Pipfile.lock
+

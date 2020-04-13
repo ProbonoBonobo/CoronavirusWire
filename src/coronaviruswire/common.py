@@ -32,9 +32,9 @@ def create_moderation_table():
     CATEGORY     TEXT[],
 
     POSITIVITY   INT,
-    MOD_STATUS   VARCHAR(255),
+    MOD_STATUS   VARCHAR(255) DEFAULT 'pending',
     BOOST_FACTOR FLOAT8,
-    FEATURED     BOOL,
+    FEATURED     BOOL DEFAULT FALSE,
 
     SPECIFICITY  VARCHAR(255),
     COUNTRY      VARCHAR(255),
@@ -49,7 +49,7 @@ def create_moderation_table():
     UPDATED_AT   TIMESTAMP DEFAULT NOW(),
     UPDATED_BY   VARCHAR(255),
 
-    NUM_CLICKS   INT,
+    NUM_CLICKS   INT DEFAULT 0,
     METADATA     JSON
     )
     '''
