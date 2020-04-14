@@ -1,5 +1,7 @@
 import json
 import csv
+import random
+import os
 from concurrent import futures
 from src.coronaviruswire.common import default_headers
 import trio
@@ -102,7 +104,33 @@ def remove_cruft(list_of_articles):
 
 
 from collections import deque
-
+def load_news_sources(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
+    fp = os.path.abspath(fp)
+    news = load_csv(fp)
+    loaded = {}
+    for row in list(news):
+        resolved_urls = []
+        for k, v in list(row.items()):
+            if len(resolved_urls) > 10:
+                break
+            if not v:
+                continue
+            elif k.startswith("sitemap_url_template"):
+                resolved = datetime.datetime.now().strftime(v)
+                resolved_urls.append(resolved)
+            elif k.startswith("sitemap_url"):
+                resolved_urls.append(v)
+        print("resolved_urls")
+        print(resolved_urls)
+        print(row)
+        url = url_normalize(row['url']).strip().lower()
+        parsed = urlparse(url)
+        row['url'] = url
+        row['site'] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
+        row['sitemap_urls'] = resolved_urls
+        if row['sitemap_urls']:
+            loaded[row['site']] = row
+    return loaded
 
 def format_text(txt):
     """Go away, weird ASCII unicode transliterations"""
@@ -232,18 +260,35 @@ def deduplicate_content(index, max_count=3):
         lines.extend(_lines)
 
     counts = Counter(lines)
+    duplicate_lines = len([line for line, count in counts.items() if count > max_count])
+    sample_len = min(duplicate_lines, 20)
+    sample = random.sample(list(counts.keys()), sample_len)
+    print(f"Found {duplicate_lines} duplicate lines. Sampling {sample_len} lines:")
+    for i, line in enumerate(sorted(sample, key=len)):
+        print(f"  {i}. {line} ({counts[line]} occurrences)")
+
+
     for id, article in _formatted.items():
         uniques = [line for line in article if counts[line] <= max_count]
         deduplicated = '\n'.join(uniques)
         output.append({"id": id, "before": index[id], "after": deduplicated})
+        print(f"=================================================== BEFORE =================================================")
+        print(index[id])
+        print(f"=================================================== AFTER ==================================================")
+        print(deduplicated)
 
     return output
 
 def deduplicate_moderation_table(tab):
     print(f"Indexing article contents...")
-    updates = {row['id']: row['content'] for row in tab}
+    updates = {row['article_id']: row['content'] for row in tab if row['content']}
+    processed = [{"article_id": article['id'],
+                 "content": article['after']} for article in deduplicate_content(updates)]
+    tab.update_many(processed, ['article_id'])
+    return processed
 
-    processed = deduplicate_content(updates)
+
+
     return processed
 
 def deduplicate_table(tab):
@@ -251,27 +296,28 @@ def deduplicate_table(tab):
     updates = {row['id']: row['articlebody'] for row in tab}
 
     processed = deduplicate_content(updates)
+
     return processed
 
 
-if __name__ == '__main__':
-    responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
-                            "news.ycombinator.com")
-    crawldb = db['crawldb']
-    rows = [(row['headline'], row['url'], row['articlebody'])
-            for row in crawldb]
-    headlines = [row[0] for row in rows]
-    articles = [row[-1] for row in rows]
-    cleaned = remove_cruft(articles)
-    for before, after in zip(articles, cleaned):
-        print(f" ============= BEFORE ============== ")
-        print(before)
-        print(f" ============= AFTER =============== ")
-        print(after)
-        print("\n\n")
-    with open("../../outputs/cleaned.json", "w") as f:
-        out = []
-        for before, after, headline in zip(articles, cleaned, headlines):
-            obj = {"headline": headline, "before": before, "after": after}
-            out.append(obj)
-        json.dump({"output": out}, f, indent=4)
+# if __name__ == '__main__':
+#     responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
+#                             "news.ycombinator.com")
+#     crawldb = db['crawldb']
+#     rows = [(row['headline'], row['url'], row['articlebody'])
+#             for row in crawldb]
+#     headlines = [row[0] for row in rows]
+#     articles = [row[-1] for row in rows]
+#     cleaned = remove_cruft(articles)
+#     for before, after in zip(articles, cleaned):
+#         print(f" ============= BEFORE ============== ")
+#         print(before)
+#         print(f" ============= AFTER =============== ")
+#         print(after)
+#         print("\n\n")
+#     with open("../../outputs/cleaned.json", "w") as f:
+#         out = []
+#         for before, after, headline in zip(articles, cleaned, headlines):
+#             obj = {"headline": headline, "before": before, "after": after}
+#             out.append(obj)
+#         json.dump({"output": out}, f, indent=4)

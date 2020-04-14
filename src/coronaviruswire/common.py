@@ -2,7 +2,7 @@ import re
 import dataset
 import psycopg2
 
-db_config = {"user": "ct",
+db_config = {"user": "kz",
              "password": "admin",
              "host": "127.0.0.1",
              "port": "5432",
@@ -12,6 +12,7 @@ db = dataset.connect(
     f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
 )
 conn = psycopg2.connect(**db_config)
+
 
 
 def create_moderation_table():
@@ -27,10 +28,19 @@ def create_moderation_table():
     SOURCE_ID    VARCHAR(255) NOT NULL,
     ARTICLE_URL  VARCHAR(255),
     IMAGE_URL    VARCHAR(255),
+    RAW_CONTENT  TEXT,          
     CONTENT      TEXT NOT NULL,
     SUMMARY      TEXT,
     CATEGORY     TEXT[],
-
+    
+    NER          JSON,
+    GEOTAGS      JSON,
+    COORDS       POLYGON,      
+    
+    HAS_NER      BOOLEAN DEFAULT FALSE,
+    HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
+    HAS_COORDS   BOOLEAN DEFAULT FALSE,
+    
     POSITIVITY   INT,
     MOD_STATUS   VARCHAR(255) DEFAULT 'pending',
     BOOST_FACTOR FLOAT8,
