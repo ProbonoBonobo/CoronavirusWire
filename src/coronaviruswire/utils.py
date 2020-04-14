@@ -292,6 +292,31 @@ def deduplicate_moderation_table(tab):
 
     return processed
 
+
+def get_geocoords():
+    import subprocess
+    import requests
+    from lxml.html import fromstring
+    from src.coronaviruswire.common import default_headers
+    ip = subprocess.check_output('curl -s https://ipinfo.io/ip', shell=True, encoding='utf-8')
+    url = f"https://tools.keycdn.com/geo?host={ip}"
+    res = requests.get(url, headers=default_headers)
+    dom = fromstring(res.content)
+
+    loc = dom.xpath('//*[@id="geoResult"]//dd')
+    for node in loc:
+        txt = node.text_content()
+        print(txt)
+        if '(lat)' in txt:
+            match = [float(coord) for coord in re.findall(r"([\d\.\-]{3,})", txt)]
+            lat, long = match
+            print(f"Latitude: {lat}")
+            print(f"Longitude: {long}")
+            return {"lat": lat, "lng": long, "ok": True}
+    else:
+        return {"lat": None, "lng": None, "ok": False}
+
+
 def deduplicate_table(tab):
     print(f"Indexing article contents...")
     updates = {row['id']: row['articlebody'] for row in tab}
