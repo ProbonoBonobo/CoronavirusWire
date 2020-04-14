@@ -55,7 +55,7 @@ max_articles_per_source = 100
 class chan:
     queue = deque()
     output = deque()
-    seen.set()
+    seen = set()
 
 
 def flatten_list(alist):
