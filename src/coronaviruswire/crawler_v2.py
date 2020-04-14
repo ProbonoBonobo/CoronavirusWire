@@ -37,6 +37,7 @@ from unidecode import unidecode
 from html import unescape
 from collections import Counter
 import re
+import termcolor
 import uuid
 
 # this is a global variable because we need to reference its contents when building the database entry
@@ -78,6 +79,7 @@ class Article:
         "datePublished": "published_at",
         "dateModified": "updated_at",
         "description": "summary",
+        "keywords": "keywords"
     }
 
     def __init__(self, url, dom, schema):
@@ -104,6 +106,9 @@ class Article:
 
         del self._dom
         super().__init__()
+    @property
+    def _keywords(self):
+        return []
 
     @property
     def _description(self):

@@ -17,6 +17,7 @@ import re
 from src.coronaviruswire.common import db
 from collections import Counter
 import spacy
+import termcolor
 from gemeinsprache.utils import blue, red
 nlp = spacy.load("en_core_web_sm")
 

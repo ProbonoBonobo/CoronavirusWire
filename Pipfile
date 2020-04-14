@@ -28,6 +28,7 @@ gemeinsprache = "*"
 uuid = "*"
 pyclustering = "*"
 python-crontab = "*"
+termcolor = "*"
 
 [requires]
 python_version = "3.7"
