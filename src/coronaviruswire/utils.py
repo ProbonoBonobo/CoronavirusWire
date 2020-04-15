@@ -67,7 +67,7 @@ def parse_html(responses):
     return responses
 
 
-def iter_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.csv",
+def iter_csv(fp="./lib/newspapers.csv",
              delimiter="\t"):
     with open(fp, 'r') as f:
         f_csv = csv.DictReader(f, delimiter=delimiter)
@@ -76,7 +76,7 @@ def iter_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.csv",
             yield dict(row.items())
 
 
-def load_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv",
+def load_csv(fp="./lib/newspapers.tsv",
              delimiter="\t"):
     return list(iter_csv(fp, delimiter))
 
@@ -105,7 +105,7 @@ def remove_cruft(list_of_articles):
 
 
 from collections import deque
-def load_news_sources(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
+def load_news_sources(fp="./lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = {}

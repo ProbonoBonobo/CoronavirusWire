@@ -22,7 +22,7 @@ import re
 from utils import format_text
 from copy import deepcopy as copy
 import uuid
-from postgresConnection import PostgresConnection
+
 
 # create_crawldb_table()
 create_moderation_table()

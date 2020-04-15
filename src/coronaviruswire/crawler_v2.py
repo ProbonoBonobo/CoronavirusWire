@@ -97,12 +97,13 @@ class Article:
         self.latitude = float(news_sources[site]["lat"].split("deg")[0])
         self.longitude = float(news_sources[site]["long"].split("deg")[0])
         self.city = news_sources[site]["loc"]
-        self.country = "United States"
+        self.country = "us"
         self.article_url = url_normalize(url)
         self.author = news_sources[site]["name"]
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
         self.raw_content = copy(self.content)
+        self.mod_status = 'pending'
 
         del self._dom
         super().__init__()
@@ -289,4 +290,3 @@ async def main():
 
 if __name__ == "__main__":
     trio.run(main)
-
