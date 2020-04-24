@@ -39,6 +39,8 @@ from collections import Counter
 import re
 import termcolor
 import uuid
+import requests
+
 
 # this is a global variable because we need to reference its contents when building the database entry
 news_sources = load_news_sources()
@@ -218,9 +220,20 @@ def extract_schemata(dom):
 async def fetch_sitemap(url):
     """Delegate function for sitemap urls, which parses the http response and adds new urls to the
        queue channel"""
+    
+    res = None
     async with httpx.AsyncClient() as client:
-        res = await client.get(url, timeout=120, headers=default_headers)
-        print(f"Got response from {url}")
+        print(f"Fetching url... {url}")
+        try:
+            res = await client.get(url, timeout=20, headers=default_headers)
+        except httpx.ReadTimeout as e:
+            print("HTTPX Error: ReadTimeout Occurred")
+            print(e)
+        except:
+            print("httpx error occurred while getting sitemap")
+    
+    if res == None:
+        return
 
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
@@ -262,7 +275,7 @@ async def main():
     while keep_going:
         print(f"Initializing nursery")
         async with trio.open_nursery() as nursery:
-            for i in range(min(len(chan.queue), 50)):
+            for i in range(min(len(chan.queue), 20)):
                 print(f"Processing item {i}")
                 next_url = chan.queue.popleft()
                 if next_url in sitemap_urls:
