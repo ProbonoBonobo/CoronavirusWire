@@ -49,14 +49,16 @@ create_moderation_table()
 crawldb = db["moderationtable"]
 seen = set([row["article_url"] for row in crawldb])
 
-max_sources = 50
-max_articles_per_source = 1000
+MAX_SOURCES = 50
+MAX_ARTICLES_PER_SOURCE = 1000
+MAX_REQUESTS = 20
+BUFFER_SIZE = 1000
 
 
 class chan:
     queue = deque()
     output = deque()
-    seen = set()
+    seen = set([row['article_url'] for row in crawldb])
 
 
 def flatten_list(alist):
@@ -84,6 +86,7 @@ class Article:
 
     def __init__(self, url, dom, schema):
         self._dom = dom
+        self.schema = schema
         for k, v in self.required_attrs.items():
             if k in schema and schema[k]:
                 value = schema[k]
@@ -102,9 +105,11 @@ class Article:
         self.author = news_sources[site]["name"]
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
-        self.raw_content = copy(self.content)
+
+        self.raw_content = copy(self._articleBody)
 
         del self._dom
+        del self.schema
         super().__init__()
 
     @property
@@ -119,7 +124,7 @@ class Article:
                 for node in self._dom.xpath("//p")
                 if node.text_content() and node.text_content().strip()
             ]
-            return text[0] if text else ""
+            return format_text(text[0] if text else "")
 
         except Exception as e:
             print(e.__class__.__name__, e)
@@ -135,20 +140,26 @@ class Article:
 
     @property
     def _headline(self):
-        return "\n".join(
+        return format_text("\n".join(
             [node.text.strip() for node in self._dom.xpath("//h1") if node.text]
-        )
+        ))
 
     @property
     def _articleBody(self):
         body = []
+        extracted = ""
+
+        if 'articleBody' in self.schema:
+            extracted = self.schema['articleBody']
         for node in self._dom.xpath("//p"):
             if node and node.text_content():
                 for line in node.text_content().strip().split("\n"):
                     txt = line.strip()
                     if txt and len(txt) > 10:
                         body.append(txt)
-        return "\n".join(body)
+        fallback = "  ".join(body)
+        return format_text(list(sorted([extracted, fallback], key=len))[-1])
+
 
 
 def extract_schemata(dom):
@@ -225,7 +236,7 @@ async def fetch_sitemap(url):
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
     for i, url in enumerate(urls):
-        if i > max_articles_per_source:
+        if i > MAX_ARTICLES_PER_SOURCE:
             break
         text = url_normalize(url.find("loc").text).strip()
         print(f"url #{i} :: {text}")
@@ -244,7 +255,7 @@ async def fetch_content(url):
         chan.output.append((url, res.content))
 
     except Exception as e:
-        print({e.__class__.__name__}, e)
+        print({e.__class__.__name__}, e, url)
         pass
 
 
@@ -253,14 +264,14 @@ async def main():
     print(f"Loaded {len(news_sources)} sources")
     queue = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     print(queue)
-    if max_sources:
-        queue = random.sample(queue, max_sources)
+    if MAX_SOURCES and len(queue) >= MAX_SOURCES:
+        queue = random.sample(queue, MAX_SOURCES)
     sitemap_urls = set(queue)
     chan.queue = deque(queue)
     while keep_going:
         print(f"Initializing nursery")
         async with trio.open_nursery() as nursery:
-            for i in range(min(len(chan.queue), 50)):
+            for i in range(min(len(chan.queue), MAX_REQUESTS)):
                 print(f"Processing item {i}")
                 next_url = chan.queue.popleft()
                 if next_url in sitemap_urls:
@@ -270,7 +281,7 @@ async def main():
                 else:
                     nursery.start_soon(fetch_content, next_url)
                     print(f"Got url {next_url}")
-        if len(chan.output) > 10 or not bool(chan.queue):
+        if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
             processed = []
             for url, html in chan.output:
                 dom = parse_html(html)
