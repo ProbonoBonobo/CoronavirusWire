@@ -1,5 +1,6 @@
 from itertools import combinations_with_replacement
 import spacy
+
 print(f"Loading vector model...")
 nlp = spacy.load("en_core_web_lg")
 print(f"Model loaded.")
@@ -19,7 +20,7 @@ headlines = (
     "Simply Salad has a clever way to get you to order in with them",
     "'Top Chef' winner Floyd Cardoz dies due to coronavirus complications",
     "O.C. reports 187 cases of the coronavirus, a 50% jump in 2 days",
-    "Nearly half of all patients at Kaiser hospital in San Jose believed to have coronavirus"
+    "Nearly half of all patients at Kaiser hospital in San Jose believed to have coronavirus",
 )
 docs = [nlp(headline) for headline in headlines]
 k = len(docs)

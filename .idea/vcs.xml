@@ -2,5 +2,8 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/apex" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/extract-news-api" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/src/aiowiki" vcs="Git" />
   </component>
 </project>

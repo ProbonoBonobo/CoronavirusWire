@@ -24,7 +24,8 @@ from munch import Munch
 import trio
 from fuzzywuzzy import fuzz
 import plotly.io as pio
-pio.renderers.default = 'browser'
+
+pio.renderers.default = "browser"
 import plotly
 from geopy.distance import geodesic
 
@@ -39,7 +40,7 @@ from itertools import combinations
 
 
 plotly.io.orca.config.executable = "/home/kz/.nvm/versions/node/v13.1.0/bin/orca"
-plotly.io.orca.config.mapbox_access_token = 'sk.eyJ1IjoibmVvbmNvbnRyYWlscyIsImEiOiJjazhzazh5M3EwNzlnM21xZm9kam80OGhrIn0.59fAYtfIHZzI3lEtCfUWjA'
+plotly.io.orca.config.mapbox_access_token = "sk.eyJ1IjoibmVvbmNvbnRyYWlscyIsImEiOiJjazhzazh5M3EwNzlnM21xZm9kam80OGhrIn0.59fAYtfIHZzI3lEtCfUWjA"
 plotly.io.orca.config.save()
 local = None
 
@@ -49,49 +50,147 @@ def similarity(a, b):
     dist = damerau_levenshtein(a, b)
     diff_len = abs(len(a) - len(b))
     len_penalty = log(len(a) / (1 + diff_len))
-    #penalty = 0.5 + 1/log(1 + dist)
+    # penalty = 0.5 + 1/log(1 + dist)
 
     score = ratio
     return Munch(locals())
 
 
+<<<<<<< Updated upstream
 def intersect_circles(centers, radii):
     try:
         circles = [Point(*center).buffer(math.sqrt(radius/2/110)) for center, radius in zip(centers, radii)]
         listpoly = [a.intersection(b) for a, b in combinations(circles, 2)]  # list of intersections
         rings = [sg.LineString(list(pol.exterior.coords)) for pol in listpoly]  # list of rings
+=======
+def intersect_shapes(shapes, buffer_radius):
+    try:
+        shapes = [shape.buffer(buffer_radius) for shape in shapes]
+        listpoly = [
+            a.intersection(b) for a, b in combinations(shapes, 2)
+        ]  # list of intersections
+        rings = [
+            LineString(list(pol.exterior.coords)) for pol in listpoly
+        ]  # list of rings
 
         union = unary_union(rings)
 
-        result = [geom for geom in polygonize(union)]  # list all intersection geometries
+        result = [
+            geom for geom in polygonize(union)
+        ]  # list all intersection geometries
 
-        multi = cascaded_union(result)  # Create a single geometry out of all intersections
+        multi = cascaded_union(
+            result
+        )  # Create a single geometry out of all intersections
+        try:
+            hulls = list(multi.exterior.coords)
+            ys, xs = [arr.tolist() for arr in multi.exterior.xy]
+            xs = [a for a, b, c, d, e, f, g, h in grouper(xs, 8)]
+            ys = [a for a, b, c, d, e, f, g, h in grouper(ys, 8)]
+            centroid = [list(reversed(list(multi.centroid.coords)[0]))]
+        except:
+            hulls = []
+            xs, ys = [], []
+            centroid = []
+
+            for poly in multi:
+                poly = Polygon(
+                    [
+                        list(sorted([x, y]))
+                        for x, y in list(poly.convex_hull.exterior.coords)
+                    ]
+                )
+                within = any(poly.within(other) for other in hulls)
+                covers = any(poly.covers(other) for other in hulls)
+                disjoint = not (any(poly.intersects(other) for other in hulls))
+                if within:
+                    print(f"Skipping {poly}")
+
+                elif disjoint:
+                    hulls.append(poly.convex_hull)
+                else:
+                    for i, hull in enumerate(hulls):
+                        if poly.covers(hull):
+                            print(f"replacing hull {i}")
+                            hulls[i] = poly.convex_hull
+                        if poly.intersects(hull):
+                            print(f"merging hull {i}")
+                            hulls[i] = poly.convex_hull.union(hull).convex_hull
+                print(
+                    f"{poly} is disjoint: {disjoint}; is within: {within}; covers: {covers}"
+                )
+
+                _ys, _xs = [arr.tolist() for arr in poly.exterior.xy]
+                _xs = [a for a, b, c, d, e, f, g, h in grouper(_xs, 8)]
+                _ys = [a for a, b, c, d, e, f, g, h in grouper(_ys, 8)]
+                xs.extend(_xs)
+                xs.extend([_xs[0], None])
+                ys.extend(_ys)
+                ys.extend([_ys[0], None])
+
+                centroid.append(list(reversed(list(poly.centroid.coords[0]))))
+            hulls = [
+                Polygon(
+                    list(
+                        [
+                            list(sorted([x, y]))
+                            for x, y in list(poly.convex_hull.exterior.coords)
+                        ]
+                    )
+                )
+                for poly in hulls
+            ]
+    except Exception as e:
+        print(e.__class__.__name__, e)
+    return hulls, centroid
+
+
+def intersect_circles(centers, radii):
+    try:
+        circles = [Point(*center).buffer(1) for center, radius in zip(centers, radii)]
+        listpoly = [
+            a.intersection(b) for a, b in combinations(circles, 2)
+        ]  # list of intersections
+        rings = [
+            sg.LineString(list(pol.exterior.coords)) for pol in listpoly
+        ]  # list of rings
+>>>>>>> Stashed changes
+
+        union = unary_union(rings)
+
+        result = [
+            geom for geom in polygonize(union)
+        ]  # list all intersection geometries
+
+        multi = cascaded_union(
+            result
+        )  # Create a single geometry out of all intersections
         # fin = [c.difference(multi) for c in circles]  # Cut multi from circles and leave only outside geometries.
         #
         # result = result + fin  # add the outside geometries to the intersections geometries
 
-    # # Plot settings:
-    # plt.figure(figsize=(5, 5))
-    # ax = plt.gca()
-    #
-    # name = 1
-    #
-    # for e in result:
-    #     ax.add_patch(descartes.PolygonPatch(e,
-    #                                         fc=np.random.rand(3),
-    #                                         ec=None,
-    #                                         alpha=0.5))
-    #
-    #     ax.text(e.centroid.x, e.centroid.y,
-    #             '%s' % name, fontsize=9,
-    #             bbox=dict(facecolor='orange', alpha=0.5),
-    #             color='blue',
-    #             horizontalalignment='center')
-    #     name += 1
+        # # Plot settings:
+        # plt.figure(figsize=(5, 5))
+        # ax = plt.gca()
+        #
+        # name = 1
+        #
+        # for e in result:
+        #     ax.add_patch(descartes.PolygonPatch(e,
+        #                                         fc=np.random.rand(3),
+        #                                         ec=None,
+        #                                         alpha=0.5))
+        #
+        #     ax.text(e.centroid.x, e.centroid.y,
+        #             '%s' % name, fontsize=9,
+        #             bbox=dict(facecolor='orange', alpha=0.5),
+        #             color='blue',
+        #             horizontalalignment='center')
+        #     name += 1
 
-    # plt.xlim(-1.5, 2.5)
-    # plt.ylim(-1.5, 2.5)
-    # plt.show()
+        # plt.xlim(-1.5, 2.5)
+        # plt.ylim(-1.5, 2.5)
+        # plt.show()
 
         #
         # intersection = cascaded_union(
@@ -101,6 +200,7 @@ def intersect_circles(centers, radii):
         try:
             hull = list(multi.exterior.coords)
             ys, xs = [arr.tolist() for arr in multi.exterior.xy]
+<<<<<<< Updated upstream
             xs = [a for a,b,c,d,e,f,g,h in grouper(xs, 8)]
             ys = [a for a,b,c,d,e,f,g,h in grouper(ys, 8)]
             centroid = [list(reversed(list(multi.centroid.coords)[0]))]
@@ -109,17 +209,31 @@ def intersect_circles(centers, radii):
         except Exception as e:
             # out = input(f"{e.__class__.__name__}: {e}")
             # breakpoint()
+=======
+            xs = [a for a, b, c, d, e, f, g, h in grouper(xs, 8)]
+            ys = [a for a, b, c, d, e, f, g, h in grouper(ys, 8)]
+            centroid = [reversed(list(multi.centroid.coords)[0])]
+        except:
+>>>>>>> Stashed changes
             hull = []
             xs, ys = [], []
             centroid = []
 
             for poly in multi:
+<<<<<<< Updated upstream
                 coords = list(poly.exterior.coords)
                 hull.extend(coords)
                 hull.extend([coords[0], None])
                 _ys, _xs = [arr.tolist() for arr in poly.exterior.xy]
                 _xs = [a for a,b,c,d,e,f,g,h in grouper(_xs, 8)]
                 _ys = [a for a,b,c,d,e,f,g,h in grouper(_ys, 8)]
+=======
+                hull.extend(poly.exterior.coords)
+                hull.extend([poly.exterior.coords[0], None])
+                _ys, _xs = [arr.tolist for arr in poly.exterior.xy]
+                _xs = [a for a, b, c, d, e, f, g, h in grouper(_xs, 8)]
+                _ys = [a for a, b, c, d, e, f, g, h in grouper(_ys, 8)]
+>>>>>>> Stashed changes
                 xs.extend(_xs)
                 xs.extend([_xs[0], None])
                 ys.extend(_ys)
@@ -131,16 +245,17 @@ def intersect_circles(centers, radii):
         print(e)
         return None
 
-
-
     return Munch({"hulls": hull, "xs": xs, "ys": ys, "centroids": centroid})
 
 
+<<<<<<< Updated upstream
 def diag2poly(p1, p2):
     points = [p1, (p1[0], p2[1]), p2, (p2[0], p1[1])]
     return points
 
 
+=======
+>>>>>>> Stashed changes
 async def search_for_place_async(place_name, location=None, radius=300):
     if location is None:
         center = None
@@ -162,17 +277,16 @@ async def search_for_place_async(place_name, location=None, radius=300):
         res = await client.get(s)
         # print(res.json())
     try:
-        candidate = res.json()['candidates'][0]
+        candidate = res.json()["candidates"][0]
     except Exception as e:
         # print(e)
         # print(res.json())
         return Munch({"ok": False, "center": None, "similarity": 0.0})
-    c1 = list(candidate['geometry']['location'].values())
-    diag1 = [(v['lat'], v['lng'])
-             for k, v in candidate['geometry']['viewport'].items()]
+    c1 = list(candidate["geometry"]["location"].values())
+    diag1 = [(v["lat"], v["lng"]) for k, v in candidate["geometry"]["viewport"].items()]
     box1 = diag2poly(*diag1)
     coords[place_name] = (c1, diag1, box1)
-    sim = similarity(place_name, candidate['name'])
+    sim = similarity(place_name, candidate["name"])
     if center:
         dist = geodesic(c1, center).kilometers
         bias = {"lat": lat, "long": long, "radius": radius}
@@ -182,14 +296,15 @@ async def search_for_place_async(place_name, location=None, radius=300):
         dist = 0
         bias = {"lat": None, "long": None, "radius": None}
     import math
-    distance_to_here = geodesic(
-        c1, coords['North Park, San Diego, California, USA'][0])
+
+    distance_to_here = geodesic(c1, coords["North Park, San Diego, California, USA"][0])
     if dist and distance_to_here.kilometers < 500:
         penalty = 0.1  #math.log(dist.kilometers, distance_to_here.kilometers)
     else:
         penalty = 1
     final_score = sim.score
 
+<<<<<<< Updated upstream
     obj = Munch({
         "ok": True,
         "query": place_name,
@@ -207,6 +322,27 @@ async def search_for_place_async(place_name, location=None, radius=300):
         "bias": bias
     })
     # print(json.dumps(obj, indent=4))
+=======
+    obj = Munch(
+        {
+            "ok": True,
+            "query": place_name,
+            "center": c1,
+            "lat": c1[0],
+            "long": c1[1],
+            "diag": diag1,
+            "box": box1,
+            "dist": dist,
+            "name": candidate["name"],
+            "address": candidate["formatted_address"],
+            "similarity": sim,
+            "edit_distance": sim.dist,
+            "score": final_score * penalty,
+            "bias": bias,
+        }
+    )
+    print(json.dumps(obj, indent=4))
+>>>>>>> Stashed changes
     return obj
 
 
@@ -296,48 +432,48 @@ async def prepare_geo_points(geo_ents, origin, counts):
             labels.append(v.name)
             queries.append(k)
             dists.append(geodesic(tuple(v.center), origin))
-            bubble_trace = go.Scattergeo({
-                "locationmode":
-                "USA-states",
-                "lon": [v.long],
-                "lat": [v.lat],
-                "name":
-                v.name,
-                "type":
-                "scattergeo",
-                "text": [
-                    f"String: {v.query}<br>Entity: {v.name}<br>Address: {v.address}<br>Occurrences: {count}"
-                ],
-                "marker": {
-                    "size":
-                    area,
-                    "color":
-                    color,
-                    "line_color":
-                    'rgb(40,40,40)',
-                    "line_width":
-                    0.5,
-                    "sizemode":
-                    'area'
+            bubble_trace = go.Scattergeo(
+                {
+                    "locationmode": "USA-states",
+                    "lon": [v.long],
+                    "lat": [v.lat],
+                    "name": v.name,
+                    "type": "scattergeo",
+                    "text": [
+                        f"String: {v.query}<br>Entity: {v.name}<br>Address: {v.address}<br>Occurrences: {count}"
+                    ],
+                    "marker": {
+                        "size": area,
+                        "color": color,
+                        "line_color": "rgb(40,40,40)",
+                        "line_width": 0.5,
+                        "sizemode": "area",
+                    },
                 }
-            })
+            )
             traces.append(bubble_trace)
+<<<<<<< Updated upstream
             # print(bubble_trace)
     bubble_traces = sorted(traces, key=lambda obj: obj['marker']['size'])
+=======
+            print(bubble_trace)
+    bubble_traces = sorted(traces, key=lambda obj: obj["marker"]["size"])
+>>>>>>> Stashed changes
     intersection = intersect_circles(points, sizes)
 
     for trace in traces:
-        trace['marker']["opacity"] = 0.5
-    return Munch({
-        "points": points,
-        "labels": labels,
-        "queries": queries,
-        "dists": dists,
-        "weights": weights,
-        "traces": bubble_traces,
-        "intersection": intersection
-
-    })
+        trace["marker"]["opacity"] = 0.5
+    return Munch(
+        {
+            "points": points,
+            "labels": labels,
+            "queries": queries,
+            "dists": dists,
+            "weights": weights,
+            "traces": bubble_traces,
+            "intersection": intersection,
+        }
+    )
 
 
 def cluster(points):
@@ -383,23 +519,16 @@ def plot_bubblemap(traces, row):
         # print(trace)
         fig.add_trace(trace)
     fig.update_layout(
-        title_text=
-        f"Article #{row['id']}<br>{row['headline']}<br>({row['site']})",
+        title_text=f"Article #{row['id']}<br>{row['headline']}<br>({row['site']})",
         showlegend=True,
-        geo=dict(
-            scope='usa',
-            landcolor='rgb(217, 217, 217)',
-        ),
-        margin={
-            'l': 0,
-            'r': 0,
-            'b': 0,
-            't': 0
-        })
+        geo=dict(scope="usa", landcolor="rgb(217, 217, 217)"),
+        margin={"l": 0, "r": 0, "b": 0, "t": 0},
+    )
 
     # print(fig)
     # fig.show()
     return fig
+
 
 def plot_intersection(map_data):
     global fig2
@@ -413,19 +542,16 @@ def plot_intersection(map_data):
         print(red(f"\n\n\n\nNo center coords!\n\n"))
         print(json.dumps(map_data, indent=4, default=str))
     fig2 = go.Figure(
-        go.Scattermapbox(mode="lines",
-                         fill="toself",
-                         lon=latitudes,
-                         lat=longitudes))
-    fig2.update_layout(mapbox={
-        'style': "stamen-terrain",
-        'center': {
-            'lon': center_lat,
-            'lat': center_long
+        go.Scattermapbox(mode="lines", fill="toself", lon=latitudes, lat=longitudes)
+    )
+    fig2.update_layout(
+        mapbox={
+            "style": "stamen-terrain",
+            "center": {"lon": center_lat, "lat": center_long},
+            "zoom": 4,
         },
-        'zoom': 4
-    },
         showlegend=False,
+<<<<<<< Updated upstream
         margin={
             'l': 0,
             'r': 0,
@@ -433,6 +559,12 @@ def plot_intersection(map_data):
             't': 0
         })
     # fig2.show()
+=======
+        margin={"l": 0, "r": 0, "b": 0, "t": 0},
+    )
+    fig2.show()
+>>>>>>> Stashed changes
+
 
 def plot_clusters(latitudes, longitudes, origin):
     lat, long = origin
@@ -441,26 +573,18 @@ def plot_clusters(latitudes, longitudes, origin):
     global fig
 
     fig = go.Figure(
-        go.Scattermapbox(mode="lines",
-                         fill="toself",
-                         lon=latitudes,
-                         lat=longitudes))
+        go.Scattermapbox(mode="lines", fill="toself", lon=latitudes, lat=longitudes)
+    )
 
-    fig.update_layout(mapbox={
-        'style': "stamen-terrain",
-        'center': {
-            'lon': lat,
-            'lat': long
+    fig.update_layout(
+        mapbox={
+            "style": "stamen-terrain",
+            "center": {"lon": lat, "lat": long},
+            "zoom": 4,
         },
-        'zoom': 4
-    },
-                      showlegend=False,
-                      margin={
-                          'l': 0,
-                          'r': 0,
-                          'b': 0,
-                          't': 0
-                      })
+        showlegend=False,
+        margin={"l": 0, "r": 0, "b": 0, "t": 0},
+    )
 
 
 def vectorize_coords(geometries):
@@ -487,11 +611,53 @@ async def process_row(rows):
     global map_data
 
     global polygons
+<<<<<<< Updated upstream
+=======
+    fig = None
+    local = await search_for_place_async("North Park, San Diego, California, USA")
+
+    origin = f"{row['loc']}, USA"
+    text = "\n\n".join(
+        [
+            str(x)
+            for x in [
+                row["headline"],
+                row["description"],
+                row["articlebody"],
+                row["keywords"],
+            ]
+        ]
+    )
+    ents = extract_entities(text)
+    counts = {ent: text.count(ent) for ent in ents}
+    geo_ents = await locate_all(ents, origin)
+    map_data = await prepare_geo_points(geo_ents, origin, counts)
+    if not map_data or len(map_data.points) < 5:
+        return
+    # clusters = cluster(map_data.points)
+    # polygons = get_convex_hull(clusters)
+    # start_coords = list(reversed(coords[origin][0]))
+    # latitude_vec, longitude_vec = vectorize_coords(polygons)
+    # plot_clusters(latitude_vec, longitude_vec, start_coords)
+    plot_bubblemap(map_data.traces, row)
+
+    plot_intersection(map_data)
+
+
+if __name__ == "__main__":
+    from src.coronaviruswire.common import db
+
+    crawldb = db["crawldb"]
+    rows = random.sample(
+        [row for row in crawldb.find() if "dallas" not in row["site"]], 1000
+    )
+>>>>>>> Stashed changes
     for row in rows:
         fig2 = None
         fig = None
         coords = {}
         geo_ents = {}
+<<<<<<< Updated upstream
         map_data = Munch()
         fig = None
         local = await search_for_place_async(
@@ -521,10 +687,19 @@ async def process_row(rows):
         print(row['headline'])
         print(row['description'])
         print(row['articlebody'])
+=======
+
+        map_data = {}
+
+        trio.run(process_row, row)
+        print(row["headline"])
+        print(row["description"])
+        print(row["articlebody"])
+>>>>>>> Stashed changes
 
         try:
-            row['extracted_features'] = geo_ents
-            row['map_data'] = map_data
+            row["extracted_features"] = geo_ents
+            row["map_data"] = map_data
             print(fig)
 
             # if fig:
@@ -536,6 +711,7 @@ async def process_row(rows):
             dirname = f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}"
             os.makedirs(dirname)
             with open(
+<<<<<<< Updated upstream
                     f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}/data.json",
                     "w") as f:
                 json.dump(row, f, default=str)
@@ -556,6 +732,21 @@ async def process_row(rows):
                 fig2.write_html(
                     os.path.join(dirname, "intersection.html"))
 
+=======
+                f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.json",
+                "w",
+            ) as f:
+                json.dump(row, f, default=str)
+            # if fig:
+            # fig.write_image(
+            #     f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.png",
+            #     width=2000,
+            #     height=1230)
+            # fig.write_html(
+            #     f"/home/kz/projects/coronaviruswire/src/coronaviruswire/outputs/article_{row['id']}.html"
+            # )
+            # fig.show()
+>>>>>>> Stashed changes
         except Exception as e:
             print(e)
             print(f"No figure for row:")

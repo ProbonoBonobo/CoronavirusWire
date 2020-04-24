@@ -2,21 +2,111 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="d8ccb8cf-c21c-4e91-bba5-88550c1e1276" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/coronaviruswire.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Pipfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Pipfile.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/coronaviruswire/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/coronaviruswire/crawler.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/coronaviruswire/fetch_all.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/coronaviruswire/fips.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/coronaviruswire.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/coronaviruswire.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Pipfile" beforeDir="false" afterPath="$PROJECT_DIR$/Pipfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apex/tests/distributed/synced_batchnorm/single_gpu_unit_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/apex/tests/distributed/synced_batchnorm/single_gpu_unit_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/extract-news-api/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/extract-news-api/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/common.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/common.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/crawler.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/crawler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/crawler_v2.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/crawler_v2.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/extract_entities.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/extract_entities.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/find_local_newspapers.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/find_local_newspapers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/generate_train_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/generate_train_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/geotagger.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/geotagger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/locate_entities.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/locate_entities.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/map_geojson.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/map_geojson.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/postgresConnection.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/postgresConnection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/similarity.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/similarity.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/train_classifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/train_classifier.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/coronaviruswire/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/coronaviruswire/utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost" type="feb32156:DbDataSourceImpl" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="postgres: database" type="162271b6:PgImplModel$Database" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="postgres: database" type="162271b6:PgImplModel$Database" />
+        <item name="schemas" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="cvwire: database" type="162271b6:PgImplModel$Database" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="cvwire: database" type="162271b6:PgImplModel$Database" />
+        <item name="schemas" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="cvwire: database" type="162271b6:PgImplModel$Database" />
+        <item name="schemas" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="public: schema" type="983ebcf7:PgImplModel$Schema" />
+      </path>
+      <path>
+        <item name="Database" type="3277223f:DatabaseStructure$DbRootGroup" />
+        <item name="cvwire@localhost [2]" type="feb32156:DbDataSourceImpl" />
+        <item name="databases" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="cvwire: database" type="162271b6:PgImplModel$Database" />
+        <item name="schemas" type="d4e8921:DatabaseStructure$FamilyGroup" />
+        <item name="public: schema" type="983ebcf7:PgImplModel$Schema" />
+        <item name="tables" type="d4e8921:DatabaseStructure$FamilyGroup" />
+      </path>
+    </expand>
+    <select />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -32,13 +122,142 @@
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
-    <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="DatabaseDriversLRU" value="postgresql" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/lib" />
+    <property name="settings.editor.selected.configurable" value="preferences.externalTools" />
+  </component>
+  <component name="RunManager" selected="Python.fips">
+    <configuration name="extract_entities" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="coronaviruswire" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/coronaviruswire" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/coronaviruswire/extract_entities.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="fetch_all" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="coronaviruswire" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/coronaviruswire" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/coronaviruswire/fetch_all.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="fips" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="coronaviruswire" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/coronaviruswire" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/coronaviruswire/fips.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="true" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="map_geojson" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="coronaviruswire" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/coronaviruswire" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/coronaviruswire/map_geojson.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="utils" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="coronaviruswire" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src/coronaviruswire" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/coronaviruswire/utils.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.extract_entities" />
+      <item itemvalue="Python.fetch_all" />
+      <item itemvalue="Python.fips" />
+      <item itemvalue="Python.map_geojson" />
+      <item itemvalue="Python.utils" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.fips" />
+        <item itemvalue="Python.utils" />
+        <item itemvalue="Python.fetch_all" />
+        <item itemvalue="Python.fips" />
+        <item itemvalue="Python.map_geojson" />
+      </list>
+    </recent_temporary>
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -51,6 +270,17 @@
       <option name="presentableId" value="Default" />
       <updated>1585105537672</updated>
       <workItem from="1585105545338" duration="800000" />
+      <workItem from="1586823751126" duration="3071000" />
+      <workItem from="1586826854395" duration="1842000" />
+      <workItem from="1586828711410" duration="35273000" />
+      <workItem from="1587065405902" duration="17835000" />
+      <workItem from="1587163304796" duration="13595000" />
+      <workItem from="1587249906443" duration="3205000" />
+      <workItem from="1587259916723" duration="5929000" />
+      <workItem from="1587280852319" duration="1171000" />
+      <workItem from="1587322869609" duration="36293000" />
+      <workItem from="1587525570990" duration="47466000" />
+      <workItem from="1587685907905" duration="13730000" />
     </task>
     <servers />
   </component>
@@ -58,9 +288,136 @@
     <option name="version" value="1" />
   </component>
   <component name="WindowStateProjectService">
-    <state x="248" y="-17" key="SettingsEditor" timestamp="1585105701344">
+    <state x="316" y="3" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1587581441705">
+      <screen x="0" y="19" width="1440" height="775" />
+    </state>
+    <state x="317" y="9" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.0.1440.795@0.0.1440.795" timestamp="1586828789734" />
+    <state x="316" y="3" key="#com.intellij.execution.impl.EditConfigurationsDialog/0.19.1440.775@0.19.1440.775" timestamp="1587581441705" />
+    <state x="472" y="58" key="#com.intellij.featureStatistics.actions.ShowFeatureUsageStatisticsDialog" timestamp="1587065468754">
       <screen x="0" y="0" width="1440" height="795" />
     </state>
-    <state x="248" y="-17" key="SettingsEditor/0.0.1440.795@0.0.1440.795" timestamp="1585105701344" />
+    <state x="472" y="58" key="#com.intellij.featureStatistics.actions.ShowFeatureUsageStatisticsDialog/0.0.1440.795@0.0.1440.795" timestamp="1587065468754" />
+    <state x="590" y="224" key="#com.intellij.ide.actions.DebugLogConfigureAction" timestamp="1587065483136">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="590" y="224" key="#com.intellij.ide.actions.DebugLogConfigureAction/0.0.1440.795@0.0.1440.795" timestamp="1587065483136" />
+    <state x="451" y="0" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog" timestamp="1587263194582">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="451" y="0" key="#com.intellij.refactoring.safeDelete.UnsafeUsagesDialog/0.0.1440.795@0.0.1440.795" timestamp="1587263194582" />
+    <state x="474" y="52" key="#com.intellij.tools.ToolEditorDialog" timestamp="1587065690015">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="474" y="52" key="#com.intellij.tools.ToolEditorDialog/0.0.1440.795@0.0.1440.795" timestamp="1587065690015" />
+    <state x="960" y="-14" key="#xdebugger.evaluate" timestamp="1587694976746">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="960" y="-14" key="#xdebugger.evaluate/0.0.1440.795@0.0.1440.795" timestamp="1587694976746" />
+    <state x="502" y="17" key="FileChooserDialogImpl" timestamp="1587665480565">
+      <screen x="0" y="19" width="1440" height="775" />
+    </state>
+    <state x="501" y="-17" key="FileChooserDialogImpl/0.0.1440.795@0.0.1440.795" timestamp="1587073043451" />
+    <state x="502" y="17" key="FileChooserDialogImpl/0.19.1440.775@0.19.1440.775" timestamp="1587665480565" />
+    <state width="848" height="295" key="GridCell.Tab.0.bottom" timestamp="1587697887393">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="848" height="295" key="GridCell.Tab.0.bottom/0.0.1440.795@0.0.1440.795" timestamp="1587697887393" />
+    <state width="856" height="229" key="GridCell.Tab.0.bottom/0.19.1440.775@0.19.1440.775" timestamp="1587678926049" />
+    <state width="848" height="295" key="GridCell.Tab.0.center" timestamp="1587697887393">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="848" height="295" key="GridCell.Tab.0.center/0.0.1440.795@0.0.1440.795" timestamp="1587697887393" />
+    <state width="856" height="229" key="GridCell.Tab.0.center/0.19.1440.775@0.19.1440.775" timestamp="1587678926049" />
+    <state width="848" height="295" key="GridCell.Tab.0.left" timestamp="1587697887392">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="848" height="295" key="GridCell.Tab.0.left/0.0.1440.795@0.0.1440.795" timestamp="1587697887392" />
+    <state width="856" height="229" key="GridCell.Tab.0.left/0.19.1440.775@0.19.1440.775" timestamp="1587678926048" />
+    <state width="848" height="295" key="GridCell.Tab.0.right" timestamp="1587697887393">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="848" height="295" key="GridCell.Tab.0.right/0.0.1440.795@0.0.1440.795" timestamp="1587697887393" />
+    <state width="856" height="229" key="GridCell.Tab.0.right/0.19.1440.775@0.19.1440.775" timestamp="1587678926049" />
+    <state width="1185" height="308" key="GridCell.Tab.1.bottom" timestamp="1587697618381">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="1185" height="308" key="GridCell.Tab.1.bottom/0.0.1440.795@0.0.1440.795" timestamp="1587697618381" />
+    <state width="1191" height="187" key="GridCell.Tab.1.bottom/0.19.1440.775@0.19.1440.775" timestamp="1587677704529" />
+    <state width="1185" height="308" key="GridCell.Tab.1.center" timestamp="1587697618380">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="1185" height="308" key="GridCell.Tab.1.center/0.0.1440.795@0.0.1440.795" timestamp="1587697618380" />
+    <state width="1191" height="187" key="GridCell.Tab.1.center/0.19.1440.775@0.19.1440.775" timestamp="1587677704529" />
+    <state width="1185" height="308" key="GridCell.Tab.1.left" timestamp="1587697618380">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="1185" height="308" key="GridCell.Tab.1.left/0.0.1440.795@0.0.1440.795" timestamp="1587697618380" />
+    <state width="1191" height="187" key="GridCell.Tab.1.left/0.19.1440.775@0.19.1440.775" timestamp="1587677704529" />
+    <state width="1185" height="308" key="GridCell.Tab.1.right" timestamp="1587697618380">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state width="1185" height="308" key="GridCell.Tab.1.right/0.0.1440.795@0.0.1440.795" timestamp="1587697618380" />
+    <state width="1191" height="187" key="GridCell.Tab.1.right/0.19.1440.775@0.19.1440.775" timestamp="1587677704529" />
+    <state x="248" y="-17" key="SettingsEditor" timestamp="1587065691027">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="248" y="-17" key="SettingsEditor/0.0.1440.795@0.0.1440.795" timestamp="1587065691027" />
+    <state x="591" y="196" width="264" height="281" key="com.intellij.database.actions.DdlActions$DeleteProvider2$1" timestamp="1587610361708">
+      <screen x="0" y="19" width="1440" height="775" />
+    </state>
+    <state x="593" y="233" width="264" height="281" key="com.intellij.database.actions.DdlActions$DeleteProvider2$1/0.0.1440.795@0.0.1440.795" timestamp="1586829014647" />
+    <state x="591" y="196" width="264" height="281" key="com.intellij.database.actions.DdlActions$DeleteProvider2$1/0.19.1440.775@0.19.1440.775" timestamp="1587610361708" />
+    <state x="586" y="68" key="com.intellij.database.view.ui.DbObjectDialog" timestamp="1586828756427">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="586" y="68" key="com.intellij.database.view.ui.DbObjectDialog/0.0.1440.795@0.0.1440.795" timestamp="1586828756427" />
+    <state x="95" y="-4" width="1244" height="626" key="com.intellij.history.integration.ui.views.FileHistoryDialog" timestamp="1586823960744">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="95" y="-4" width="1244" height="626" key="com.intellij.history.integration.ui.views.FileHistoryDialog/0.0.1440.795@0.0.1440.795" timestamp="1586823960744" />
+    <state x="413" y="21" key="com.intellij.ide.util.TipDialog" timestamp="1587685908522">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="413" y="21" key="com.intellij.ide.util.TipDialog/0.0.1440.795@0.0.1440.795" timestamp="1587685908522" />
+    <state x="412" y="14" key="com.intellij.ide.util.TipDialog/0.19.1440.775@0.19.1440.775" timestamp="1587525571281" />
+    <state x="555" y="263" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1586826032207">
+      <screen x="0" y="0" width="1440" height="795" />
+    </state>
+    <state x="555" y="263" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.0.1440.795@0.0.1440.795" timestamp="1586826032207" />
+    <state x="383" y="132" width="672" height="661" key="search.everywhere.popup" timestamp="1587581410228">
+      <screen x="0" y="19" width="1440" height="775" />
+    </state>
+    <state x="383" y="116" width="672" height="678" key="search.everywhere.popup/0.0.1440.795@0.0.1440.795" timestamp="1587092741422" />
+    <state x="383" y="132" width="672" height="661" key="search.everywhere.popup/0.19.1440.775@0.19.1440.775" timestamp="1587581410228" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/coronaviruswire/locate_entities.py</url>
+          <line>371</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/coronaviruswire/map_geojson.py</url>
+          <line>460</line>
+          <option name="timeStamp" value="6" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/coronaviruswire/fips.py</url>
+          <line>315</line>
+          <option name="timeStamp" value="14" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/coronaviruswire$crawler_v2.coverage" NAME="crawler_v2 Coverage Results" MODIFIED="1586855854179" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$fips.coverage" NAME="fips Coverage Results" MODIFIED="1587697887374" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$map_geojson.coverage" NAME="map_geojson Coverage Results" MODIFIED="1587266292258" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$extract_entities.coverage" NAME="extract_entities Coverage Results" MODIFIED="1587090211880" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$fetch_all.coverage" NAME="fetch_all Coverage Results" MODIFIED="1587611529085" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$locate_entities.coverage" NAME="locate_entities Coverage Results" MODIFIED="1586832201649" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
+    <SUITE FILE_PATH="coverage/coronaviruswire$utils.coverage" NAME="utils Coverage Results" MODIFIED="1587675640444" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src/coronaviruswire" />
   </component>
 </project>

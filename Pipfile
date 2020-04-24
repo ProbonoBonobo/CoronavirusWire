@@ -33,6 +33,16 @@ plotly = "*"
 fuzzywuzzy = "*"
 geopy = "*"
 termcolor = "*"
+fuzzywuzzy = "*"
+shapely = "*"
+ipython = "*"
+geopy = "*"
+pyproj = "*"
+plotly = "*"
+pandas = "*"
+gemeinsprache = "*"
+wikipedia = "*"
+
 
 [requires]
 python_version = "3.7"
