@@ -58,7 +58,7 @@ BUFFER_SIZE = 1000
 class chan:
     queue = deque()
     output = deque()
-    seen = set([row['article_url'] for row in crawldb])
+    seen = set() #[row['article_url'] for row in crawldb])
 
 
 def flatten_list(alist):
@@ -124,7 +124,7 @@ class Article:
                 for node in self._dom.xpath("//p")
                 if node.text_content() and node.text_content().strip()
             ]
-            return format_text(text[0] if text else "")
+            return format_text(text) if text else ""
 
         except Exception as e:
             print(e.__class__.__name__, e)
@@ -157,7 +157,7 @@ class Article:
                     txt = line.strip()
                     if txt and len(txt) > 10:
                         body.append(txt)
-        fallback = "  ".join(body)
+        fallback = " \n ".join(body)
         return format_text(list(sorted([extracted, fallback], key=len))[-1])
 
 
@@ -244,6 +244,7 @@ async def fetch_sitemap(url):
             continue
         chan.queue.append(text)
         chan.seen.add(text)
+    chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
 
 async def fetch_content(url):
@@ -267,8 +268,9 @@ async def main():
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
         queue = random.sample(queue, MAX_SOURCES)
     sitemap_urls = set(queue)
-    chan.queue = deque(queue)
+    chan.queue = deque(queue, len(queue))
     while keep_going:
+        chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
         print(f"Initializing nursery")
         async with trio.open_nursery() as nursery:
             for i in range(min(len(chan.queue), MAX_REQUESTS)):
