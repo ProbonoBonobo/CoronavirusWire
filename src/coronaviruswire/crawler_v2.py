@@ -238,7 +238,7 @@ async def fetch_sitemap(url):
     for i, url in enumerate(urls):
         if i > MAX_ARTICLES_PER_SOURCE:
             break
-        text = url_normalize(url.find("loc").text).strip()
+        text = url_normalize(url.find("loc").text.strip())
         print(f"url #{i} :: {text}")
         if text in chan.seen:
             continue
