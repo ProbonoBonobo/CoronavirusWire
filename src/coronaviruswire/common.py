@@ -23,11 +23,11 @@ def create_moderation_table():
     (ID          SERIAL NOT NULL,
     ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
 
-    TITLE        VARCHAR(255) NOT NULL,
-    AUTHOR       VARCHAR(255),
+    TITLE        TEXT NOT NULL,
+    AUTHOR       TEXT,
     SOURCE_ID    VARCHAR(255) NOT NULL,
-    ARTICLE_URL  VARCHAR(255),
-    IMAGE_URL    VARCHAR(255),
+    ARTICLE_URL  TEXT,
+    IMAGE_URL    TEXT,
     RAW_CONTENT  TEXT,
     CONTENT      TEXT NOT NULL,
     SUMMARY      TEXT,
@@ -35,7 +35,7 @@ def create_moderation_table():
 
     NER          JSON,
     GEOTAGS      JSON,
-    COORDS       POLYGON,
+    COORDS       FLOAT8,
 
     HAS_NER      BOOLEAN DEFAULT FALSE,
     HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
