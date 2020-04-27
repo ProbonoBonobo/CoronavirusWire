@@ -26,3 +26,4 @@ apt-get install libpq-dev
 build-essential libssl-dev libffi-dev \
 libxml2-dev libxslt1-dev zlib1g-dev \
 python-pip`
+6) create .env file and add `export PYTHONPATH=":"` to allow for python to import module inside the current project folder
