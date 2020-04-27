@@ -17,7 +17,7 @@ url-normalize = "*"
 cssselect = "*"
 munch = "*"
 dataset = "*"
-psycopg2 = "*"
+psycopg2 = "~=2.8.4"
 fast-bert = "*"
 torch = "*"
 transformers = "*"
@@ -36,7 +36,6 @@ ipython = "*"
 pyproj = "*"
 pandas = "*"
 wikipedia = "*"
-
 
 [requires]
 python_version = "3.7"

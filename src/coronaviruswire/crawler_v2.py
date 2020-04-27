@@ -14,6 +14,8 @@ from src.coronaviruswire.utils import (
     deduplicate_moderation_table,
     deduplicate_table,
 )
+from src.coronaviruswire.pointAdaptor import (Point, adapt_point)
+from psycopg2.extensions import adapt, register_adapter, AsIs
 from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
 from munch import Munch
@@ -40,6 +42,7 @@ import re
 import termcolor
 import uuid
 
+
 # this is a global variable because we need to reference its contents when building the database entry
 news_sources = load_news_sources()
 
@@ -52,7 +55,7 @@ seen = set([row["article_url"] for row in crawldb])
 MAX_SOURCES = 50
 MAX_ARTICLES_PER_SOURCE = 1000
 MAX_REQUESTS = 20
-BUFFER_SIZE = 1000
+BUFFER_SIZE = 50
 
 
 class chan:
@@ -85,6 +88,8 @@ class Article:
     }
 
     def __init__(self, url, dom, schema):
+        register_adapter(Point, adapt_point)
+
         self._dom = dom
         self.schema = schema
         for k, v in self.required_attrs.items():
@@ -97,10 +102,13 @@ class Article:
                 value = format_text(value)
             setattr(self, v, value)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
-        self.latitude = float(news_sources[site]["lat"].split("deg")[0])
-        self.longitude = float(news_sources[site]["long"].split("deg")[0])
-        self.city = news_sources[site]["loc"]
-        self.country = "United States"
+        latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
+        longitude = float(news_sources[site]["long"].split("deg")[0])
+
+        # latitude input is wrong, see pointAdaptor for more details
+        self.sourcelonglat = Point(longitude, latitude)
+        self.sourceloc = news_sources[site]["loc"]
+        self.sourcecountry = "us"
         self.article_url = url_normalize(url)
         self.author = news_sources[site]["name"]
         self.article_id = str(uuid.uuid4())
@@ -294,6 +302,7 @@ async def main():
                 print(json.dumps(parsed.__dict__, indent=4, default=str))
                 processed.append(parsed.__dict__)
 
+            print("upserting many...")
             crawldb.upsert_many(processed, ["article_url"])
             chan.output = []
             keep_going = bool(chan.queue)

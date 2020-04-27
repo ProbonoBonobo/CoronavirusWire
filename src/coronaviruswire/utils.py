@@ -62,7 +62,7 @@ def parse_html(responses):
     return responses
 
 
-def iter_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.csv", delimiter="\t"):
+def iter_csv(fp="./lib/newspapers.csv", delimiter="\t"):
     with open(fp, "r") as f:
         f_csv = csv.DictReader(f, delimiter=delimiter)
         cols = f_csv.fieldnames
@@ -70,7 +70,7 @@ def iter_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.csv", delimite
             yield dict(row.items())
 
 
-def load_csv(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv", delimiter="\t"):
+def load_csv(fp="./lib/newspapers.tsv", delimiter="\t"):
     return list(iter_csv(fp, delimiter))
 
 
@@ -100,7 +100,7 @@ def remove_cruft(list_of_articles):
 from collections import deque
 
 
-def load_news_sources(fp="/home/kz/projects/coronaviruswire/lib/newspapers.tsv"):
+def load_news_sources(fp="./lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = {}
@@ -245,7 +245,7 @@ def cache_queries(func):
 
 
 def initialize_kmedoids_model(
-    path_to_points="../../lib/us_metros_scraped_geocoords.tsv"
+    path_to_points="./lib/us_metros_scraped_geocoords.tsv"
 ):
 
     import numpy as np
@@ -720,7 +720,7 @@ if __name__ == "__main__":
     #     print(f" ============= AFTER =============== ")
     #     print(after)
     #     print("\n\n")
-    # with open("../../outputs/cleaned.json", "w") as f:
+    # with open("./outputs/cleaned.json", "w") as f:
     #     out = []
     #     for before, after, headline in zip(articles, cleaned, headlines):
     #         obj = {"headline": headline, "before": before, "after": after}

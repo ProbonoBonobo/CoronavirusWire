@@ -2,11 +2,16 @@ import re
 import dataset
 import psycopg2
 
-db_config = {"user": "ct",
+# db_config = {"user": "ct",
+#              "password": "admin",
+#              "host": "127.0.0.1",
+#              "port": "5432",
+#              "database": "cvwire"}
+db_config = {"user": "postgres",
              "password": "admin",
-             "host": "127.0.0.1",
+             "host": "34.83.188.109",
              "port": "5432",
-             "database": "cvwire"}
+             "database": "postgres"}
 
 db = dataset.connect(
     f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
@@ -22,26 +27,42 @@ def create_moderation_table():
     (ID          SERIAL NOT NULL,
     ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
 
-    TITLE        VARCHAR(255) NOT NULL,
-    AUTHOR       VARCHAR(255),
+    TITLE        TEXT NOT NULL,
+    AUTHOR       TEXT,
     SOURCE_ID    VARCHAR(255) NOT NULL,
-    ARTICLE_URL  VARCHAR(255),
-    IMAGE_URL    VARCHAR(255),
+    ARTICLE_URL  TEXT,
+    IMAGE_URL    TEXT,
     CONTENT      TEXT NOT NULL,
     SUMMARY      TEXT,
     CATEGORY     TEXT[],
+
+    NER          JSON,
+    GEOTAGS      JSON,
+
+    HAS_NER      BOOLEAN DEFAULT FALSE,
+    HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
+    HAS_COORDS   BOOLEAN DEFAULT FALSE,
 
     POSITIVITY   INT,
     MOD_STATUS   VARCHAR(255) DEFAULT 'pending',
     BOOST_FACTOR FLOAT8,
     FEATURED     BOOL DEFAULT FALSE,
 
-    SPECIFICITY  VARCHAR(255),
-    COUNTRY      VARCHAR(255),
-    REGION       VARCHAR(255),
-    CITY         VARCHAR(255),
-    LATITUDE     FLOAT8,
-    LONGITUDE    FLOAT8,
+    SPECIFICITY  TEXT,
+    COUNTRY      TEXT,
+    SOURCECOUNTRY TEXT,
+    REGION       TEXT,
+    CITY         TEXT,
+    SOURCELOC    TEXT,
+    LONGLAT      POINT,
+    SOURCELONGLAT POINT,
+    COORDS       POINT[],
+    CITIES       TEXT[],
+    REGIONS      TEXT[],
+    LABELS       TEXT[],
+    ENTITIES     TEXT[],
+    FIPS         TEXT[],
+    LOCREFS      Int[],
 
     PUBLISHED_AT TIMESTAMP NOT NULL,
     CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -50,7 +71,8 @@ def create_moderation_table():
     UPDATED_BY   VARCHAR(255),
 
     NUM_CLICKS   INT DEFAULT 0,
-    METADATA     JSON
+    METADATA     JSON,
+    LANG         TEXT
     )
     """
     with conn.cursor() as cursor:

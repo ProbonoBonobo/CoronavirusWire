@@ -2,6 +2,8 @@ from src.coronaviruswire.common import db
 from src.coronaviruswire.utils import extract_entities, format_text
 import spacy
 
+LIMIT_ARTICLES = 100
+
 
 nlp = spacy.load("en_core_web_sm")
 crawldb = db["moderationtable"]
@@ -9,7 +11,7 @@ crawldb = db["moderationtable"]
 if __name__ == "__main__":
     updates = []
     print(f"Extracting entities..")
-    for row in [row for row in crawldb.find() if not row["ner"]]:
+    for row in [row for row in crawldb.find(ner=None, _limit=LIMIT_ARTICLES)]:
         print(f"Updating {row}")
         content = format_text(
             "\n".join(
