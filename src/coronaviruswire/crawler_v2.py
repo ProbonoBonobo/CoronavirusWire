@@ -52,9 +52,9 @@ create_moderation_table()
 crawldb = db["moderationtable"]
 seen = set([row["article_url"] for row in crawldb])
 
-MAX_SOURCES = 50
-MAX_ARTICLES_PER_SOURCE = 1000
-MAX_REQUESTS = 20
+MAX_SOURCES = 20
+MAX_ARTICLES_PER_SOURCE = 50
+MAX_REQUESTS = 5
 BUFFER_SIZE = 50
 
 
