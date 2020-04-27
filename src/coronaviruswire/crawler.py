@@ -1,5 +1,18 @@
-from src.coronaviruswire.common import patterns, default_headers, create_sitemaps_table, create_crawldb_table, create_moderation_table, db
-from src.coronaviruswire.utils import parse_schemata, format_text, deduplicate_content, deduplicate_moderation_table, deduplicate_table
+from src.coronaviruswire.common import (
+    patterns,
+    default_headers,
+    create_sitemaps_table,
+    create_crawldb_table,
+    create_moderation_table,
+    db,
+)
+from src.coronaviruswire.utils import (
+    parse_schemata,
+    format_text,
+    deduplicate_content,
+    deduplicate_moderation_table,
+    deduplicate_table,
+)
 from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
 from munch import Munch
@@ -29,27 +42,29 @@ create_moderation_table()
 
 create_sitemaps_table()
 
-crawldb = db['moderationtable']
+crawldb = db["moderationtable"]
 # crawldb = db['crawldb']
 
-sitemapdb = db['sitemaps']
+sitemapdb = db["sitemaps"]
 # crawldb.drop()
 # sitemapdb.drop()
 # create_crawldb_table()
 # create_sitemaps_table()
 import time
-seen = set([row['article_url'] for row in crawldb])
+
+seen = set([row["article_url"] for row in crawldb])
 
 googleCloudConn = PostgresConnection()
+
 
 def get_text_chunks(node):
     def recursively_get_text(node):
         if not node:
             return ""
-        elif hasattr(node, 'getchildren') and node.getchildren():
+        elif hasattr(node, "getchildren") and node.getchildren():
             text = [recursively_get_text(kid) for kid in node.getchildren()]
             text = [txt for txt in text if txt]
-            return '\n'.join(text)
+            return "\n".join(text)
         elif isinstance(node, str):
             return node.strip()
         else:
@@ -97,17 +112,18 @@ class Article(Munch):
         self.site = parsed.netloc
         self.path = parsed.path
         try:
-            pardir = '/'.join(re.sub(r'(/)$', '', self.path).split("/")[:-2])
+            pardir = "/".join(re.sub(r"(/)$", "", self.path).split("/")[:-2])
         except:
             pardir = "/"
         self.base_url = f"{parsed.scheme}://{parsed.netloc}{pardir}"
-        self.lastmod = parse_timestamp(format_text(
-            lastmod.text)) if lastmod else None
+        self.lastmod = parse_timestamp(format_text(lastmod.text)) if lastmod else None
         self.headline = format_text(title.text.strip()) if title else ""
-        self.keywords = [format_text(kw) for kw in keywords.text.split(",")
-                         ] if keywords else []
-        self.publication_date = format_text(
-            publication_date.text) if publication_date else ""
+        self.keywords = (
+            [format_text(kw) for kw in keywords.text.split(",")] if keywords else []
+        )
+        self.publication_date = (
+            format_text(publication_date.text) if publication_date else ""
+        )
         self.description = format_text(description.text) if description else ""
         self.xml = format_text(xml.__repr__())
         self.metadata = {"schemata": [], "errors": []}
@@ -121,8 +137,8 @@ class Article(Munch):
         return json.dumps(self.__dict__, indent=4, default=str)
 
     def parse(self):
-        self.has_metadata = bool(self.metadata['schemata'])
-        self.metadata_count = len(self.metadata['schemata'])
+        self.has_metadata = bool(self.metadata["schemata"])
+        self.metadata_count = len(self.metadata["schemata"])
         self.visited = bool(self.html)
         for k, v in parse_schemata(self.__dict__).items():
             setattr(self, k, v)
@@ -138,10 +154,9 @@ class Article(Munch):
             if not self.headline:
                 self.headline = find_one("//h1")
             if not self.articlebody:
-                self.articlebody = '\n'.join([
-                    format_text(node.text_content())
-                    for node in tree.xpath("//p")
-                ])
+                self.articlebody = "\n".join(
+                    [format_text(node.text_content()) for node in tree.xpath("//p")]
+                )
             print(self.articlebody)
         except Exception as e:
             print(e)
@@ -187,8 +202,9 @@ class Crawler:
         return accumulator
 
     async def crawl_urls(self, urls):
-        queue = deque(random.sample(
-            urls, len(urls)))  # distribute the load between domains
+        queue = deque(
+            random.sample(urls, len(urls))
+        )  # distribute the load between domains
 
         async def _fetch_async(url: Article, all_done=False):
             _url = url.url
@@ -201,7 +217,7 @@ class Crawler:
                         f"[ {get_timestamp()} ] Received URL {_url} (response length: {len(response.content)} bytes)"
                     )
                     url.status_code = response.status_code
-                    url.ok = url.status_code == '200'
+                    url.ok = url.status_code == "200"
                     url.visited = url.ok
                     url.html = response.content
                     url.length = len(response.content)
@@ -229,8 +245,7 @@ class Crawler:
                         try:
                             next_url = queue.popleft()
                         except:
-                            print(
-                                f"[ {get_timestamp()} ] Scheduling complete.")
+                            print(f"[ {get_timestamp()} ] Scheduling complete.")
                             break
 
                         seen.add(next_url.url)
@@ -248,7 +263,6 @@ class Crawler:
 
         return await _initiate_crawl(queue)
 
-
     def upsert_many_with_data_transform(self, parsedList):
         print("TTTT 1")
         print(parsedList)
@@ -258,55 +272,54 @@ class Crawler:
             newArticle = {}
 
             article_id = str(uuid.uuid4())
-            newArticle['article_id'] = article_id
-            if 'headline' in parsed:
-                newArticle['title'] = parsed['headline']
+            newArticle["article_id"] = article_id
+            if "headline" in parsed:
+                newArticle["title"] = parsed["headline"]
             else:
                 print("Warning: skipping due to missing headline")
                 continue
 
-            print("GGGG" + newArticle['title'])
+            print("GGGG" + newArticle["title"])
 
-            newArticle['author'] = parsed['site']
-            newArticle['source_id'] = parsed['site']
-            newArticle['article_url'] = parsed['url']
+            newArticle["author"] = parsed["site"]
+            newArticle["source_id"] = parsed["site"]
+            newArticle["article_url"] = parsed["url"]
 
-            if 'articlebody' in parsed:
-                newArticle['content'] = parsed['articlebody']
+            if "articlebody" in parsed:
+                newArticle["content"] = parsed["articlebody"]
             else:
                 print("Warning: skipping due to missing articlebody")
                 continue
 
-            newArticle['category'] = parsed['keywords']
-            newArticle['mod_status'] = 'pending'
+            newArticle["category"] = parsed["keywords"]
+            newArticle["mod_status"] = "pending"
 
-            if 'publication_date' in parsed:
-                newArticle['published_at'] = parsed['publication_date']
+            if "publication_date" in parsed:
+                newArticle["published_at"] = parsed["publication_date"]
             else:
                 print("Warning: skipping due to missing publication_date")
                 continue
 
-            if not newArticle['published_at'] or newArticle['published_at'] == '':
+            if not newArticle["published_at"] or newArticle["published_at"] == "":
                 continue
 
-            newArticle['created_by'] = 'crawler'
+            newArticle["created_by"] = "crawler"
 
-            if 'city' in parsed:
-                newArticle['city'] = parsed['city']
+            if "city" in parsed:
+                newArticle["city"] = parsed["city"]
 
-            if 'state' in parsed:
-                newArticle['region'] = parsed['state']
+            if "state" in parsed:
+                newArticle["region"] = parsed["state"]
 
             metadata = {}
-            if 'metadata' in parsed:
-                newArticle['metadata'] = parsed['metadata']
+            if "metadata" in parsed:
+                newArticle["metadata"] = parsed["metadata"]
 
             print("AAAA Inserting new article " + article_id)
 
             newParsedList.append(newArticle)
 
-        crawldb.upsert_many(newParsedList, ['article_url'])
-
+        crawldb.upsert_many(newParsedList, ["article_url"])
 
     async def extract_schema_objects(self, responses):
         """Iterate through a collection of HTTP response objects, extract any
@@ -340,9 +353,7 @@ class Crawler:
            HTTP responses."""
         fetched_urls = await self.crawl_sitemaps(kids)
 
-        relevant_local_urls = [
-            url for url in fetched_urls if url.url not in seen
-        ]
+        relevant_local_urls = [url for url in fetched_urls if url.url not in seen]
         responses = await self.crawl_urls(relevant_local_urls)
         parsedList = [
             obj.parse() for obj in await self.extract_schema_objects(responses)
@@ -357,7 +368,6 @@ class Crawler:
 
         # Transform to GCP format
         self.upsert_many_with_data_transform(parsedList)
-
 
         #  At this point I would usually write insert the parsed responses into a database,
         #  but to make the code a little easier to distribute, I'm just going to serialize them
@@ -379,20 +389,23 @@ class SitemapInfo(Crawler):
        (url structure, publication date, descriptive summaries, etc.) to earmark URLs
        that are likely to contain relevant local news content. (News sites are really big,
        and it's not unusual for a sitemap to contain millions of URLs.)"""
+
     def __init__(
-            self,
-            city: str,
-            state: str,
-            loc: str,
-            lat: str,
-            long: str,
-            domain: str,
-            sitemap_urls: list,
-            is_local: callable,
-            is_relevant: callable = lambda url: bool(
-                re.findall(
-                    patterns['coronavirus'], '\n'.join(
-                        [url.text, url.description, '\n'.join(url.keywords)])))
+        self,
+        city: str,
+        state: str,
+        loc: str,
+        lat: str,
+        long: str,
+        domain: str,
+        sitemap_urls: list,
+        is_local: callable,
+        is_relevant: callable = lambda url: bool(
+            re.findall(
+                patterns["coronavirus"],
+                "\n".join([url.text, url.description, "\n".join(url.keywords)]),
+            )
+        ),
     ):
         super().__init__()
         super().children[domain] = self
@@ -414,9 +427,9 @@ class SitemapInfo(Crawler):
 
         async def _fetch(url):
             async with httpx.AsyncClient() as client:
-                responses.append(await client.get(str(url),
-                                                  timeout=120,
-                                                  headers=default_headers))
+                responses.append(
+                    await client.get(str(url), timeout=120, headers=default_headers)
+                )
 
         queue = deque(self.urls)
         async with trio.open_nursery() as nursery:
@@ -428,7 +441,7 @@ class SitemapInfo(Crawler):
             #  extracting url metadata from the subtrees could potentially
             #  be expedited with a threadpool, but I'm afraid of mixing
             #  parallel and concurrent code in the same program :3
-            soup = BeautifulSoup(res.content, 'xml')
+            soup = BeautifulSoup(res.content, "xml")
             urls = soup.find_all("url")
             print(urls)
             for url in urls:
@@ -457,9 +470,10 @@ def tokenize(txt):
     nums_and_xml_removed = re.sub(r"(<[^>]*>|\d+)", " ", txt)
     tokens = re.split(r"\b", nums_and_xml_removed)
     punctuation_removed = [
-        token for token in tokens
-        if token.strip() and not any(ch in set(['\n', ' ', *punctuation])
-                                     for ch in token)
+        token
+        for token in tokens
+        if token.strip()
+        and not any(ch in set(["\n", " ", *punctuation]) for ch in token)
     ]
     return punctuation_removed
 
@@ -481,29 +495,31 @@ def load_sitemap_urls(fp="lib/newspapers.tsv"):
         print("rrresolved_urls")
         print(resolved_urls)
         print(row)
-        url = url_normalize(row['url']).strip().lower()
+        url = url_normalize(row["url"]).strip().lower()
         parsed = urlparse(url)
-        row['url'] = url
-        row['site'] = parsed.netloc
-        row['sitemap_urls'] = resolved_urls
+        row["url"] = url
+        row["site"] = parsed.netloc
+        row["sitemap_urls"] = resolved_urls
         loaded.append(row)
     return loaded
 
 
 def initialize_crawlers():
     index = {}
-    news = [row for row in load_sitemap_urls() if row['sitemap_urls']]
+    news = [row for row in load_sitemap_urls() if row["sitemap_urls"]]
     # restrict to just the first 5 rows until we hammer out the glitches
     for row in random.sample(news, 2):
-        index[row['name']] = SitemapInfo(row['city'],
-                                         row['state'],
-                                         row['loc'],
-                                         row['lat'],
-                                         row['long'],
-                                         row['url'],
-                                         row['sitemap_urls'],
-                                         is_local=lambda xml: True,
-                                         is_relevant=lambda xml: True)
+        index[row["name"]] = SitemapInfo(
+            row["city"],
+            row["state"],
+            row["loc"],
+            row["lat"],
+            row["long"],
+            row["url"],
+            row["sitemap_urls"],
+            is_local=lambda xml: True,
+            is_relevant=lambda xml: True,
+        )
     return index
 
 
@@ -587,14 +603,14 @@ crawlers = initialize_crawlers()
 #         r"(county|san.{0,1}diego|north.{0,1}county|local|california)", '\n'
 #         .join([xml.title, ', '.join(xml.keywords)]), re.IGNORECASE)))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     crawler = Crawler()
     trio.run(crawler.crawl)
     deduped = deduplicate_moderation_table(crawldb)
     for row in deduped:
         print(f"=================== Before:  ====================")
-        print(row['before'])
+        print(row["before"])
         print(f"\n\n=================== After:  ====================")
-        print(row['after'])
+        print(row["after"])
 
         print("===============================================")

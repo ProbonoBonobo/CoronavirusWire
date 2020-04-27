@@ -14,6 +14,8 @@ from src.coronaviruswire.utils import (
     deduplicate_moderation_table,
     deduplicate_table,
 )
+from src.coronaviruswire.pointAdaptor import (Point, adapt_point)
+from psycopg2.extensions import adapt, register_adapter, AsIs
 from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
 from munch import Munch
@@ -39,7 +41,6 @@ from collections import Counter
 import re
 import termcolor
 import uuid
-import requests
 
 
 # this is a global variable because we need to reference its contents when building the database entry
@@ -51,14 +52,16 @@ create_moderation_table()
 crawldb = db["moderationtable"]
 seen = set([row["article_url"] for row in crawldb])
 
-max_sources = 20
-max_articles_per_source = 100
+MAX_SOURCES = 50
+MAX_ARTICLES_PER_SOURCE = 1000
+MAX_REQUESTS = 20
+BUFFER_SIZE = 50
 
 
 class chan:
     queue = deque()
     output = deque()
-    seen = set()
+    seen = set() #[row['article_url'] for row in crawldb])
 
 
 def flatten_list(alist):
@@ -81,11 +84,14 @@ class Article:
         "datePublished": "published_at",
         "dateModified": "updated_at",
         "description": "summary",
-        "keywords": "keywords"
+        "keywords": "keywords",
     }
 
     def __init__(self, url, dom, schema):
+        register_adapter(Point, adapt_point)
+
         self._dom = dom
+        self.schema = schema
         for k, v in self.required_attrs.items():
             if k in schema and schema[k]:
                 value = schema[k]
@@ -96,19 +102,24 @@ class Article:
                 value = format_text(value)
             setattr(self, v, value)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
-        self.latitude = float(news_sources[site]["lat"].split("deg")[0])
-        self.longitude = float(news_sources[site]["long"].split("deg")[0])
-        self.city = news_sources[site]["loc"]
-        self.country = "us"
+        latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
+        longitude = float(news_sources[site]["long"].split("deg")[0])
+
+        # latitude input is wrong, see pointAdaptor for more details
+        self.sourcelonglat = Point(longitude, latitude)
+        self.sourceloc = news_sources[site]["loc"]
+        self.sourcecountry = "us"
         self.article_url = url_normalize(url)
         self.author = news_sources[site]["name"]
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
-        self.raw_content = copy(self.content)
-        self.mod_status = 'pending'
+
+        self.raw_content = copy(self._articleBody)
 
         del self._dom
+        del self.schema
         super().__init__()
+
     @property
     def _keywords(self):
         return []
@@ -121,7 +132,7 @@ class Article:
                 for node in self._dom.xpath("//p")
                 if node.text_content() and node.text_content().strip()
             ]
-            return text[0] if text else ""
+            return format_text(text) if text else ""
 
         except Exception as e:
             print(e.__class__.__name__, e)
@@ -137,20 +148,26 @@ class Article:
 
     @property
     def _headline(self):
-        return "\n".join(
+        return format_text("\n".join(
             [node.text.strip() for node in self._dom.xpath("//h1") if node.text]
-        )
+        ))
 
     @property
     def _articleBody(self):
         body = []
+        extracted = ""
+
+        if 'articleBody' in self.schema:
+            extracted = self.schema['articleBody']
         for node in self._dom.xpath("//p"):
             if node and node.text_content():
                 for line in node.text_content().strip().split("\n"):
                     txt = line.strip()
                     if txt and len(txt) > 10:
                         body.append(txt)
-        return "\n".join(body)
+        fallback = " \n ".join(body)
+        return format_text(list(sorted([extracted, fallback], key=len))[-1])
+
 
 
 def extract_schemata(dom):
@@ -220,32 +237,22 @@ def extract_schemata(dom):
 async def fetch_sitemap(url):
     """Delegate function for sitemap urls, which parses the http response and adds new urls to the
        queue channel"""
-    
-    res = None
     async with httpx.AsyncClient() as client:
-        print(f"Fetching url... {url}")
-        try:
-            res = await client.get(url, timeout=20, headers=default_headers)
-        except httpx.ReadTimeout as e:
-            print("HTTPX Error: ReadTimeout Occurred")
-            print(e)
-        except:
-            print("httpx error occurred while getting sitemap")
-    
-    if res == None:
-        return
+        res = await client.get(url, timeout=120, headers=default_headers)
+        print(f"Got response from {url}")
 
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
     for i, url in enumerate(urls):
-        if i > max_articles_per_source:
+        if i > MAX_ARTICLES_PER_SOURCE:
             break
-        text = url_normalize(url.find("loc").text).strip()
+        text = url_normalize(url.find("loc").text.strip())
         print(f"url #{i} :: {text}")
         if text in chan.seen:
             continue
         chan.queue.append(text)
         chan.seen.add(text)
+    chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
 
 async def fetch_content(url):
@@ -257,25 +264,24 @@ async def fetch_content(url):
         chan.output.append((url, res.content))
 
     except Exception as e:
-        print({e.__class__.__name__}, e)
+        print({e.__class__.__name__}, e, url)
         pass
 
 
 async def main():
-    global news_sources
     keep_going = True
-
     print(f"Loaded {len(news_sources)} sources")
     queue = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     print(queue)
-    if max_sources:
-        queue = random.sample(queue, max_sources)
+    if MAX_SOURCES and len(queue) >= MAX_SOURCES:
+        queue = random.sample(queue, MAX_SOURCES)
     sitemap_urls = set(queue)
-    chan.queue = deque(queue)
+    chan.queue = deque(queue, len(queue))
     while keep_going:
+        chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
         print(f"Initializing nursery")
         async with trio.open_nursery() as nursery:
-            for i in range(min(len(chan.queue), 20)):
+            for i in range(min(len(chan.queue), MAX_REQUESTS)):
                 print(f"Processing item {i}")
                 next_url = chan.queue.popleft()
                 if next_url in sitemap_urls:
@@ -285,7 +291,7 @@ async def main():
                 else:
                     nursery.start_soon(fetch_content, next_url)
                     print(f"Got url {next_url}")
-        if len(chan.output) > 10 or not bool(chan.queue):
+        if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
             processed = []
             for url, html in chan.output:
                 dom = parse_html(html)
@@ -296,6 +302,7 @@ async def main():
                 print(json.dumps(parsed.__dict__, indent=4, default=str))
                 processed.append(parsed.__dict__)
 
+            print("upserting many...")
             crawldb.upsert_many(processed, ["article_url"])
             chan.output = []
             keep_going = bool(chan.queue)
@@ -303,3 +310,4 @@ async def main():
 
 if __name__ == "__main__":
     trio.run(main)
+    deduplicate_moderation_table(crawldb)
