@@ -37,6 +37,7 @@ ipython = "*"
 pyproj = "*"
 pandas = "*"
 wikipedia = "*"
+newspaper3k = "*"
 
 [requires]
 python_version = "3.7"
