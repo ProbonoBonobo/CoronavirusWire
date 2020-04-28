@@ -2,7 +2,7 @@ import re
 import dataset
 import psycopg2
 
-# db_config = {"user": "ct",
+# db_config = {"user": "kz",
 #              "password": "admin",
 #              "host": "127.0.0.1",
 #              "port": "5432",
@@ -38,6 +38,7 @@ def create_moderation_table():
     SUMMARY      TEXT,
     CATEGORY     TEXT[],
 
+
     NER          JSON,
     GEOTAGS      JSON,
 
@@ -68,9 +69,9 @@ def create_moderation_table():
 
     PUBLISHED_AT TIMESTAMP NOT NULL,
     CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
-    CREATED_BY   VARCHAR(255),
+    CREATED_BY   TEXT,
     UPDATED_AT   TIMESTAMP DEFAULT NOW(),
-    UPDATED_BY   VARCHAR(255),
+    UPDATED_BY   TEXT,
 
     NUM_CLICKS   INT DEFAULT 0,
     METADATA     JSON,

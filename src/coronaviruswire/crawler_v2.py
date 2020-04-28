@@ -22,6 +22,7 @@ from munch import Munch
 from dateutil.parser import parse as parse_timestamp
 from lxml.html import fromstring as parse_html
 from urllib.parse import urlparse
+from newspaper import Article as NewsArticle
 import random
 import datetime
 import os
@@ -52,10 +53,10 @@ create_moderation_table()
 crawldb = db["moderationtable"]
 seen = set([row["article_url"] for row in crawldb])
 
-MAX_SOURCES = 20
-MAX_ARTICLES_PER_SOURCE = 50
-MAX_REQUESTS = 5
-BUFFER_SIZE = 50
+MAX_SOURCES = 50
+MAX_ARTICLES_PER_SOURCE = 1000
+MAX_REQUESTS = 20
+BUFFER_SIZE = 100
 
 
 class chan:
@@ -237,9 +238,15 @@ def extract_schemata(dom):
 async def fetch_sitemap(url):
     """Delegate function for sitemap urls, which parses the http response and adds new urls to the
        queue channel"""
-    async with httpx.AsyncClient() as client:
-        res = await client.get(url, timeout=120, headers=default_headers)
-        print(f"Got response from {url}")
+    try:
+        async with httpx.AsyncClient() as client:
+            try:
+                res = await client.get(url, timeout=200, headers=default_headers)
+            except httpx._exceptions.ReadTimeout as e:
+                print({e.__class__.__name__}, e, url)
+            print(f"Got response from {url}")
+    except httpx._exceptions.ReadTimeout as e:
+        print({e.__class__.__name__}, e, url)
 
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
@@ -259,11 +266,14 @@ async def fetch_content(url):
     """Delegate function for fetching a content URL, which appends the response to the output channel"""
     try:
         async with httpx.AsyncClient() as client:
-            res = await client.get(url, timeout=120, headers=default_headers)
+            try:
+                res = await client.get(url, timeout=200, headers=default_headers)
+            except httpx._exceptions.ReadTimeout as e:
+                print({e.__class__.__name__}, e, url)
             print(f"Got response from {url}")
         chan.output.append((url, res.content))
 
-    except Exception as e:
+    except httpx._exceptions.ReadTimeout as e:
         print({e.__class__.__name__}, e, url)
         pass
 
@@ -294,13 +304,89 @@ async def main():
         if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
             processed = []
             for url, html in chan.output:
-                dom = parse_html(html)
-                metadata = extract_schemata(dom)
-                parsed = Article(url, dom, metadata)
-                print(f"Url: {url}")
-                print(f"Parsed: {parsed}")
-                print(json.dumps(parsed.__dict__, indent=4, default=str))
-                processed.append(parsed.__dict__)
+                parsed = NewsArticle(url)
+                parsed.download(html)
+                parsed.parse()
+                parsed.nlp()
+                site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
+                latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
+                longitude = float(news_sources[site]["long"].split("deg")[0])
+
+                # latitude input is wrong, see pointAdaptor for more details
+                sourcelonglat = Point(longitude, latitude)
+                sourceloc = news_sources[site]["loc"]
+                sourcecountry = "us"
+
+                article_id = str(uuid.uuid4())
+                _section = None
+                _tag = None
+                category = []
+                keywords = [unidecode(kw) for kw in parsed.keywords]
+                published = parsed.publish_date
+                modified = parsed.publish_date
+                description = parsed.summary
+
+                try:
+                    description = unidecode(parsed.meta_data['article']['description'])
+                except:
+                    pass
+
+                try:
+                    modified = parse_timestamp(parsed.meta_data['article']['modified'])
+                except:
+                    pass
+
+                try:
+                    alt_tags = re.findall(r"([^,;:]{4,})", parsed.meta_data['article']['news_keywords'])
+                    keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
+                except:
+                    pass
+
+
+                try:
+                    _section = unidecode(parsed.meta_data['article']['section'])
+                    _tag = unidecode(parsed.meta_data['article']['tag'])
+                except:
+                    pass
+
+
+                if _section or _tag:
+                    category = [s for s in (_section, _tag) if s]
+                if not published:
+                    dom = parse_html(html)
+                    metadata = extract_schemata(dom)
+                    article = Article(url, dom, metadata)
+                    published = article._datePublished
+                    modified = article._dateModified
+
+
+                row = {
+                    "raw_content": unidecode(parsed.text),
+                    "content": unidecode(parsed.text),
+                    "title": unidecode(parsed.title),
+                    "summary": unidecode(description),
+                    "keywords": keywords,
+                    "image_url": parsed.top_image,
+                    "article_url": url,
+                    "author": ', '.join(parsed.authors),
+                    "category": category,
+                    "source_id": site,
+                    "sourceloc": sourceloc,
+                    # "sourcelonglat": sourcelonglat,
+                    "sourcecountry": sourcecountry,
+                    "article_id": article_id,
+                    "has_ner": False,
+                    "has_geotags": False,
+                    "has_coords": False,
+                    "published_at": published,
+                    "edited_at": modified
+
+                }
+                if not re.search(r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE):
+                    continue
+                else:
+                    print(json.dumps(row, indent=4, default=str))
+                    processed.append(row)
 
             print("upserting many...")
             crawldb.upsert_many(processed, ["article_url"])
