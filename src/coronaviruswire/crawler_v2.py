@@ -53,9 +53,9 @@ create_moderation_table()
 crawldb = db["moderationtable_v2"]
 seen = set([row["article_url"] for row in crawldb])
 
-MAX_SOURCES = 50
-MAX_ARTICLES_PER_SOURCE = 1000
-MAX_REQUESTS = 20
+MAX_SOURCES = 5
+MAX_ARTICLES_PER_SOURCE = 100
+MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
 
@@ -242,12 +242,10 @@ async def fetch_sitemap(url):
         async with httpx.AsyncClient() as client:
             try:
                 res = await client.get(url, timeout=200, headers=default_headers)
-            except httpx._exceptions.ReadTimeout as e:
-                print({e.__class__.__name__}, e, url)
-            print(f"Got response from {url}")
-    except httpx._exceptions.ReadTimeout as e:
-        print({e.__class__.__name__}, e, url)
-
+            except:
+                return
+    except:
+        return
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
     for i, url in enumerate(urls):
@@ -268,14 +266,14 @@ async def fetch_content(url):
         async with httpx.AsyncClient() as client:
             try:
                 res = await client.get(url, timeout=200, headers=default_headers)
-            except httpx._exceptions.ReadTimeout as e:
-                print({e.__class__.__name__}, e, url)
+            except:
+                return
             print(f"Got response from {url}")
         chan.output.append((url, res.content))
 
-    except httpx._exceptions.ReadTimeout as e:
-        print({e.__class__.__name__}, e, url)
-        pass
+    except:
+        return
+
 
 
 async def main():
@@ -383,7 +381,9 @@ async def main():
 
                 }
                 if not re.search(r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE):
+                    print(f"No match for coronavirus in article: {url}")
                     continue
+
                 else:
                     print(json.dumps(row, indent=4, default=str))
                     processed.append(row)
