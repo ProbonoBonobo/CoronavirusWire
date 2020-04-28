@@ -50,7 +50,7 @@ news_sources = load_news_sources()
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
 
-crawldb = db["moderationtable"]
+crawldb = db["moderationtable_v2"]
 seen = set([row["article_url"] for row in crawldb])
 
 MAX_SOURCES = 50

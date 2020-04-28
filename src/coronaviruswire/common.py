@@ -21,10 +21,10 @@ conn = psycopg2.connect(**db_config)
 
 
 def create_moderation_table():
-    if "moderationtable" in db.tables:
+    if "moderationtable_v2" in db.tables:
         return
 
-    create_table_query = """CREATE TABLE moderationtable
+    create_table_query = """CREATE TABLE moderationtable_v2
     (ID          SERIAL NOT NULL,
     ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
 
