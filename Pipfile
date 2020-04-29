@@ -38,6 +38,7 @@ pyproj = "*"
 pandas = "*"
 wikipedia = "*"
 newspaper3k = "*"
+flatdict = "*"
 
 [requires]
 python_version = "3.7"
