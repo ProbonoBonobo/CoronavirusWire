@@ -408,7 +408,8 @@ async def main():
                     "has_coords": False,
                     "published_at": published,
                     "edited_at": modified,
-                    "city": city
+                    "city": city,
+                    "state": state
 
                 }
                 if not re.search(r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE):
