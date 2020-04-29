@@ -330,7 +330,11 @@ async def main():
                 if site in news_sources:
                     sourceloc = news_sources[site]["loc"]
                     author = news_sources[site]["name"]
-                    city, state = sourceloc.split(", ")
+                    try:
+                        city, state = sourceloc.split(", ")
+                    except:
+                        city = sourceloc
+                        
                 else:
                     for k, v in news_sources.items():
                         if site in k or k in site:
