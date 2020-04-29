@@ -325,7 +325,7 @@ async def main():
                 parsed.download(html)
                 parsed.parse()
                 parsed.nlp()
-                city, state = None
+                city, state = None, None
                 site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
                 if site in news_sources:
                     sourceloc = news_sources[site]["loc"]
