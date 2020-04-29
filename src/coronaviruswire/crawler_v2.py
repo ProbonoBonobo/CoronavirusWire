@@ -45,7 +45,7 @@ import uuid
 
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources()
+news_sources = load_news_sources("./lib/newspapers.tsv")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
@@ -53,8 +53,8 @@ create_moderation_table()
 crawldb = db["moderationtable_v2"]
 seen = set([row["article_url"] for row in crawldb])
 
-MAX_SOURCES = 5
-MAX_ARTICLES_PER_SOURCE = 100
+MAX_SOURCES = 100
+MAX_ARTICLES_PER_SOURCE = 5
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
@@ -62,7 +62,7 @@ BUFFER_SIZE = 100
 class chan:
     queue = deque()
     output = deque()
-    seen = set() #[row['article_url'] for row in crawldb])
+    seen = set([row['article_url'] for row in crawldb])
 
 
 def flatten_list(alist):
@@ -103,15 +103,23 @@ class Article:
                 value = format_text(value)
             setattr(self, v, value)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
-        latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
-        longitude = float(news_sources[site]["long"].split("deg")[0])
-
-        # latitude input is wrong, see pointAdaptor for more details
-        self.sourcelonglat = Point(longitude, latitude)
-        self.sourceloc = news_sources[site]["loc"]
+        # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
+        # longitude = float(news_sources[site]["long"].split("deg")[0])
+        #
+        # # latitude input is wrong, see pointAdaptor for more details
+        # self.sourcelonglat = Point(longitude, latitude)
+        if site in news_sources:
+            self.sourceloc = news_sources[site]["loc"]
+            self.author = news_sources[site]["name"]
+        else:
+            for k,v  in news_sources.items():
+                if site in k or k in site:
+                    self.sourceloc = v['loc']
+                    self.author = v['name']
+                    break
         self.sourcecountry = "us"
         self.article_url = url_normalize(url)
-        self.author = news_sources[site]["name"]
+
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
 
@@ -369,7 +377,7 @@ async def main():
                     "author": ', '.join(parsed.authors),
                     "category": category,
                     "source_id": site,
-                    "sourceloc": sourceloc,
+                     "sourceloc": sourceloc,
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
                     "article_id": article_id,
