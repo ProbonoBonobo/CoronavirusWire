@@ -325,10 +325,12 @@ async def main():
                 parsed.download(html)
                 parsed.parse()
                 parsed.nlp()
+                city, state = None
                 site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
                 if site in news_sources:
                     sourceloc = news_sources[site]["loc"]
                     author = news_sources[site]["name"]
+                    city, state = sourceloc.split(", ")
                 else:
                     for k, v in news_sources.items():
                         if site in k or k in site:
@@ -405,7 +407,8 @@ async def main():
                     "has_geotags": False,
                     "has_coords": False,
                     "published_at": published,
-                    "edited_at": modified
+                    "edited_at": modified,
+                    "city":
 
                 }
                 if not re.search(r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE):
