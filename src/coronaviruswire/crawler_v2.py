@@ -14,6 +14,7 @@ from src.coronaviruswire.utils import (
     deduplicate_moderation_table,
     deduplicate_table,
 )
+import pickle
 from src.coronaviruswire.pointAdaptor import (Point, adapt_point)
 from psycopg2.extensions import adapt, register_adapter, AsIs
 from url_normalize import url_normalize
@@ -51,18 +52,24 @@ news_sources = load_news_sources("./lib/newspapers.tsv")
 create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
-seen = set([row["article_url"] for row in crawldb])
 
 MAX_SOURCES = 100
 MAX_ARTICLES_PER_SOURCE = 50
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
+seen_urls  = set()
+try:
+    with open("seen.pkl", "rb") as f:
+        seen_urls = pickle.load(f)
+except:
+    pass
+
 
 class chan:
     queue = deque()
     output = deque()
-    seen = set([row['article_url'] for row in crawldb])
+    seen = set([row['article_url'] for row in crawldb] + list(seen_urls))
 
 
 def flatten_list(alist):
@@ -263,7 +270,7 @@ async def fetch_sitemap(url):
         print(f"url #{i} :: {text}")
         if text in chan.seen:
             continue
-        chan.queue.appendleft(text)
+        chan.queue.append(text)
         chan.seen.add(text)
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
@@ -292,7 +299,7 @@ async def main():
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
         queue = random.sample(queue, MAX_SOURCES)
     sitemap_urls = set(queue)
-    chan.queue = deque(queue, len(queue))
+    chan.queue = deque(queue)
     while keep_going:
 
         print(f"Initializing nursery")
@@ -309,9 +316,10 @@ async def main():
                     print(f"Got url {next_url}")
 
         if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
-            chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
+            # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
             processed = []
             for url, html in chan.output:
+                chan.seen.add(url)
                 parsed = NewsArticle(url)
                 parsed.download(html)
                 parsed.parse()
@@ -411,6 +419,10 @@ async def main():
             crawldb.upsert_many(processed, ["article_url"])
             chan.output = []
             keep_going = bool(chan.queue)
+            print(chan.queue)
+            print(f"{len(chan.queue)} urls in the queue")
+        with open("seen.pkl", "wb") as f:
+            pickle.dump(chan.seen, f)
 
 
 if __name__ == "__main__":
