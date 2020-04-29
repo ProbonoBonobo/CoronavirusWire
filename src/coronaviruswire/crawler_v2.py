@@ -336,6 +336,10 @@ async def main():
                 if raw_url in sitemap_urls:
                     print(cyan("[ eventloop ]") + f" :: Scheduling {cyan('sitemap crawl')} for url: {raw_url}")
                     nursery.start_soon(fetch_sitemap, raw_url)
+                    # sitemap payloads seem to be exceeding the maximum buffer size for asyncio operations...
+                    # try requesting only 2 at a time?
+                    if i >= 2:
+                        break
                 else:
                     print(cyan("[ eventloop ]") + f" :: Scheduling {magenta('content crawl')} for url: {raw_url}")
                     nursery.start_soon(fetch_content, raw_url)
