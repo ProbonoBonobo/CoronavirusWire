@@ -69,7 +69,7 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set()
+    seen = set(seen_urls)
 
 
 def flatten_list(alist):
