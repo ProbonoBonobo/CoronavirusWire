@@ -264,13 +264,15 @@ async def fetch_sitemap(url):
         return
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
+    found = 0
     for i, url in enumerate(urls):
-        if i > MAX_ARTICLES_PER_SOURCE:
+        if found >= MAX_ARTICLES_PER_SOURCE:
             break
         text = url_normalize(url.find("loc").text.strip())
         print(f"url #{i} :: {text}")
         if text in chan.seen:
             continue
+        found += 1
         chan.queue.append(text)
         chan.seen.add(text)
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
