@@ -261,7 +261,7 @@ async def fetch_sitemap(sitemap_url):
         async with httpx.AsyncClient() as client:
             try:
                 print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
-                res = await client.get(sitemap_url, timeout=10, headers=default_headers)
+                res = await client.get(sitemap_url, timeout=60, headers=default_headers)
             except Exception as e:
                 print(magenta(f"[ fetch_sitemap ] ") + red(f":: Failed to fetch url: {sitemap_url}. {e.__class__.__name__} :: {e}"))
                 return
