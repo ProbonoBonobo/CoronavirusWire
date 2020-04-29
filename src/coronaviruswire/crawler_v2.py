@@ -6,6 +6,7 @@ from src.coronaviruswire.common import (
     create_moderation_table,
     db,
 )
+from flatdict import FlatDict
 from src.coronaviruswire.utils import (
     parse_schemata,
     format_text,
@@ -14,7 +15,9 @@ from src.coronaviruswire.utils import (
     deduplicate_moderation_table,
     deduplicate_table,
 )
+from pylev import levenshtein
 import pickle
+from gemeinsprache.utils import red, yellow, green, blue, magenta, cyan
 from src.coronaviruswire.pointAdaptor import (Point, adapt_point)
 from psycopg2.extensions import adapt, register_adapter, AsIs
 from url_normalize import url_normalize
@@ -46,7 +49,7 @@ import uuid
 
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("./lib/newspapers.tsv")
+news_sources = load_news_sources("../../lib/newspapers.tsv")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
@@ -54,14 +57,14 @@ create_moderation_table()
 crawldb = db["moderationtable_v2"]
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 50
+MAX_ARTICLES_PER_SOURCE = 10
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
-seen_urls  = set()
+seen_urls  = set([row['article_url'] for row in crawldb])
 try:
     with open("seen.pkl", "rb") as f:
-        seen_urls = pickle.load(f)
+        seen_urls.update(pickle.load(f))
 except:
     pass
 
@@ -251,30 +254,44 @@ def extract_schemata(dom):
     return {}
 
 
-async def fetch_sitemap(url):
+async def fetch_sitemap(sitemap_url):
     """Delegate function for sitemap urls, which parses the http response and adds new urls to the
        queue channel"""
     try:
         async with httpx.AsyncClient() as client:
             try:
-                res = await client.get(url, timeout=10, headers=default_headers)
-            except:
+                print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
+                res = await client.get(sitemap_url, timeout=10, headers=default_headers)
+            except Exception as e:
+                print(magenta(f"[ fetch_sitemap ] ") + red(f":: Failed to fetch url: {sitemap_url}. {e.__class__.__name__} :: {e}"))
                 return
-    except:
+    except Exception as e:
+        print(magenta(f"[ fetch_sitemap ] ") + red(f":: Encountered an unknown exception while fetching url {sitemap_url}: {e.__class__.__name__} :: {e}"))
         return
+
     soup = BeautifulSoup(res.content, "xml")
     urls = soup.find_all("url")
+
+    total = len(urls)
+    print(magenta("[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
     found = 0
+    dups = 0
     for i, url in enumerate(urls):
+        url_string = url.find("loc").text.strip()
         if found >= MAX_ARTICLES_PER_SOURCE:
             break
-        text = url_normalize(url.find("loc").text.strip())
-        print(f"url #{i} :: {text}")
-        if text in chan.seen:
+        # text = url_normalize(url.find("loc").text.strip())
+
+        if url_string in chan.seen:
+            dups += 1
             continue
+
         found += 1
-        chan.queue.append(text)
-        chan.seen.add(text)
+
+        print(magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}")
+        chan.queue.append(url_string)
+        #chan.seen.add(url_string)
+    print(f"{magenta('[ fetch_sitemap ]')} :: Extracted {green(str(found) + ' new urls')} and {yellow(str(dups) + ' duplicates')} (of {total} total) from sitemap: {sitemap_url}")
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
 
@@ -283,67 +300,95 @@ async def fetch_content(url):
     try:
         async with httpx.AsyncClient() as client:
             try:
+                print(f"{blue('[ fetch_content ]')} :: Initiating request for url: {url}")
                 res = await client.get(url, timeout=10, headers=default_headers)
-            except:
+                print(f"{blue('[ fetch_content ]')} :: Fetched {green(len(res.content))} {green('bytes')} from url: {url}")
+                chan.seen.add(url)
+            except Exception as e:
+                print(blue('[ fetch_content ]') + red(f":: Failed to fetch url: {url}. {e.__class__.__name__} :: {e}"))
                 return
-            print(f"Got response from {url}")
+
         chan.output.append((url, res.content))
 
-    except:
+    except Exception as e:
+        print(blue('[ fetch_content ]') + red(f" :: Encountered an unknown exception while fetching url {url}: {e.__class__.__name__} :: {e}"))
         return
 
 
 
 async def main():
     keep_going = True
-    print(f"Loaded {len(news_sources)} sources")
+    print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
     queue = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
         queue = random.sample(queue, MAX_SOURCES)
     sitemap_urls = set(queue)
     chan.queue = deque(queue)
+    iterations = 0
     while keep_going:
-
-        print(f"Initializing nursery")
+        iterations += 1
+        print(cyan(f"[ eventloop ] :: Iteration #{iterations} is now starting. Initializing the nursery..."))
         async with trio.open_nursery() as nursery:
             for i in range(min(len(chan.queue), MAX_REQUESTS)):
-                print(f"Processing item {i}")
+                # print(f"Processing item {i}")
                 raw_url = chan.queue.popleft()
-                next_url = url_normalize(raw_url.strip())
-                if next_url in sitemap_urls:
-                    print(f"Starting {next_url}")
-                    nursery.start_soon(fetch_sitemap, next_url)
-                    print(f"Continuing")
+                if raw_url in sitemap_urls:
+                    print(cyan("[ eventloop ]") + f" :: Scheduling {cyan('sitemap crawl')} for url: {raw_url}")
+                    nursery.start_soon(fetch_sitemap, raw_url)
                 else:
-                    nursery.start_soon(fetch_content, next_url)
-                    print(f"Got url {next_url}")
-
+                    print(cyan("[ eventloop ]") + f" :: Scheduling {magenta('content crawl')} for url: {raw_url}")
+                    nursery.start_soon(fetch_content, raw_url)
+                    # print(f"Got url {raw_url}")
+        print(cyan(f"[ eventloop ] :: Iteration #{iterations} is now complete. There are now {len(chan.output)} HTTP responses in the output buffer."))
         if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
             # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
+            print(cyan(f"[ eventloop ] :: Processing those responses now."))
             processed = []
+            curr = 0
             for url, html in chan.output:
-                chan.seen.add(url)
+                curr += 1
+                print(cyan(f"[ eventloop ] :: Processing url #{curr}: {url}"))
+                dup_row = crawldb.find_one(article_url=url)
+                # chan.seen.add(url)
                 parsed = NewsArticle(url)
                 parsed.download(html)
                 parsed.parse()
                 parsed.nlp()
                 city, state = None, None
-                site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
+                site = re.sub(r"(https?://|www\.)*", "", url_normalize(urlparse(parsed.source_url).netloc))
+                sourceloc = None
                 if site in news_sources:
                     sourceloc = news_sources[site]["loc"]
                     author = news_sources[site]["name"]
                     try:
                         city, state = sourceloc.split(", ")
-                    except:
+                    except Exception as e:
+                        print(red(f"[ parser ] :: Invalid 'loc' value for site {site}: {sourceloc}. This value needs to have the form: (<city>, <state>)."))
                         city = sourceloc
 
                 else:
+                    for k in sorted(list(news_sources.keys())):
+                        print(f"    {yellow(k)}")
+                    print(yellow(f"[ parser ] :: The current site '{site}' could not be found in the list of news sources above. I will attempt to find a partial match for this source, but you may wish to revise the load_news_sources procedure."))
+                    ok = False
                     for k, v in news_sources.items():
                         if site in k or k in site:
+                            print(green(f"[ parser ] :: Success! Key {k} appears to match site {site}. I will add that as an alias for {k} to expedite parsing those URLs in the future."))
                             sourceloc = v['loc']
                             author = v['name']
+                            news_sources[site] = v
+                            ok = True
                             break
+                    if not ok:
+                        print(red(f"[ parser ] :: I couldn't find any partial matches for {site} either. Resorting to using levenshtein distance..."))
+                        ranked = list(sorted([(levenshtein(site, k), k) for k in news_sources.keys()]))
+                        print(f"[ parser ] :: I will use {cyan(ranked[0][1])} for {cyan(site)} because it has the smallest edit distance. If this is incorrect, you'll want to edit the load_news_sources procedure.")
+                        k = ranked[0][1]
+                        v = news_sources[k]
+                        sourceloc = v['loc']
+                        author = v['name']
+                        news_sources[site] = v
                 # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
                 # longitude = float(news_sources[site]["long"].split("deg")[0])
                 #
@@ -356,37 +401,88 @@ async def main():
                 _section = None
                 _tag = None
                 category = []
-                keywords = [unidecode(kw) for kw in parsed.keywords]
+                keywords = set()
+                article_metadata = FlatDict(dict(parsed.meta_data))
                 published = parsed.publish_date
                 modified = parsed.publish_date
                 description = parsed.summary
+                print(json.dumps(parsed.meta_data, indent=4, default=str))
+                print(f"====================== END OF METADATA FOR URL {url} ==========================")
+                try:
+                    for k,v in article_metadata.items():
+                        if 'description' in k:
+                            description = unidecode(unescape(v))
+                            print(green(f"[ parser ] Found metadescription for article {url}:"))
+                            print(f"============================== SUMMARY ===================================\n {blue(parsed.summary)}\n\n============================== METADESCRIPTION ==========================================\n{magenta(description)}\n\n")
+                            print(green(f"[ parser ] Using METADESCRIPTION instead for article {url}."))
+                            break
+
+                except Exception as e:
+                    print(yellow(f"[ parser ] No metadescription for article {url}. \n           Falling back to summary: \n\n {blue(description)}\n ==============================================================================="))
+                    pass
 
                 try:
-                    description = unidecode(parsed.meta_data['article']['description'])
+                    for k,v in article_metadata.items():
+                        if 'modified' in k and isinstance(v, str):
+                            modified = parse_timestamp(parsed.meta_data['article']['modified'])
+                            break
+                        elif 'modified' in k and isinstance(v, datetime.datetime):
+                            modified = v
+                            break
                 except:
                     pass
 
                 try:
-                    modified = parse_timestamp(parsed.meta_data['article']['modified'])
-                except:
+                    # schema_types = ['blogpost', 'article', 'newsarticle']
+                    # # parsed.meta_data = dict(parsed.meta_data)
+                    # if parsed.meta_data and any(k in parsed.meta_data and parsed.meta_data[k] for k in schema_types):
+                    #     metadata = {}
+                    #     for k in schema_types:
+                    #         if k in parsed.meta_data:
+                    #             print(green(f"[ parser ] URL {url} metadata contains a {k} object:"))
+                    #             print(green(json.dumps(parsed.meta_data[k], indent=4, default=str)))
+                    #             metadata.update(parsed.meta_data[k])
+                    #     print("============================================== AGGREGATED METADATA =========================================")
+                    #     print(green(json.dumps(metadata, indent=4, default=str)))
+                    #     print(green(f"[ parser ] Aggregated metadata for url {url} has keys:"))
+                    #     for i, k in enumerate(metadata.keys()):
+                    #         print(f"    {i}. {yellow(k)}")
+                        ks = [k for k in article_metadata.keys() if 'keyword' in k.lower() or 'tag' in k.lower()]
+
+                        keyword_strings = ", ".join([str(article_metadata[k]) for k in ks])
+                        alt_tags = list(set([kw.strip().replace("-", " ").title() for kw in re.findall(r"([^,;:]{4,})", keyword_strings)]))
+                        print(green(f"[ parser ] Found {len(alt_tags)} additional news keywords from {len(ks)} keys in the metadata for article {url}:"))
+
+                        for i, tag in enumerate(alt_tags):
+                            print(cyan(f"  {i}.  {tag}"))
+                        print(f"[ parser ] Keyword attributes present in site {site}:")
+                        for i, k in enumerate(ks):
+                            print(cyan(f"   {i}. {k}"))
+
+                        keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
+                    # else:
+                    #     print(f"===================================================== METADATA ===============================================")
+                    #     print(yellow(json.dumps(parsed.meta_data, indent=4, default=str)))
+                    #     print(f"==============================================================================================================")
+                    #     print(yellow(f"[ parser ] Couldn't extract keywords for url {url} because site {site} does not appear to have a schema object. If the object above does contain useful keyword data, you may want to modify the parsing procedure"))
+                except Exception as e:
+                    print(f"=================================================== METADATA ==============================================")
+                    try:
+                        print(red(json.dumps(parsed.meta_data, indent=4, default=str)))
+                    except:
+                        print(red(parsed.meta_data))
+                    print(f"===========================================================================================================")
+                    print(red(f"[ parser ] Encountered {e.__class__.__name__} while extracting keywords from url {url} : {e}"))
+
                     pass
 
-                try:
-                    alt_tags = re.findall(r"([^,;:]{4,})", parsed.meta_data['article']['news_keywords'])
-                    keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
-                except:
-                    pass
+
+                category = []
+                for k, v in article_metadata.items():
+                    if 'section' in k.lower():
+                        category.append(v)
 
 
-                try:
-                    _section = unidecode(parsed.meta_data['article']['section'])
-                    _tag = unidecode(parsed.meta_data['article']['tag'])
-                except:
-                    pass
-
-
-                if _section or _tag:
-                    category = [s for s in (_section, _tag) if s]
                 if not published:
                     dom = parse_html(html)
                     metadata = extract_schemata(dom)
@@ -406,6 +502,7 @@ async def main():
                     "author": ', '.join(parsed.authors),
                     "category": category,
                     "source_id": site,
+                    "metadata": json.loads(json.dumps(dict(article_metadata))),
                      "sourceloc": sourceloc,
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
@@ -419,22 +516,43 @@ async def main():
                     "state": state
 
                 }
+                if dup_row:
+                    print(red(f"[ parser ] Url {url} appears to be a duplicate!"))
+                    print("================================================== PARSED ==========================================")
+                    print(blue(json.dumps(row, indent=4, default=str)))
+                    print("====================================================================================================")
+                    print("================================================= DUPLICATE ========================================")
+                    print(magenta(json.dumps(row, indent=4, default=str)))
+                    print("====================================================================================================")
+                    print(red(f"[ parser ] Not adding url {url}, as that would violate the uniqueness constraint."))
+                    continue
                 if not re.search(r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE):
-                    print(f"No match for coronavirus in article: {url}")
+                    print(yellow(f"[ parser ] :: No match for coronavirus in article: {url}"))
                     continue
 
                 else:
                     print(json.dumps(row, indent=4, default=str))
+                    print(green(f"[ parser ] Finished parsing {url}. {len(processed)} total rows are now in the buffer."))
                     processed.append(row)
 
-            print("upserting many...")
+            print(green(f"[ eventloop ] Upserting {len(processed)} rows..."))
             crawldb.upsert_many(processed, ["article_url"])
             chan.output = []
             keep_going = bool(chan.queue)
-            print(chan.queue)
-            print(f"{len(chan.queue)} urls in the queue")
+            print(green(f"[ eventloop ] {len(chan.queue)} urls remaining in the queue."))
         with open("seen.pkl", "wb") as f:
-            pickle.dump(chan.seen, f)
+            try:
+                pickle.dump(chan.seen, f)
+            except Exception as e:
+                bad = []
+                for url in chan.seen:
+                    print(url, type(url))
+                    if not isinstance(url, str):
+                        bad.append(url)
+
+                print(e.__class__.__name__, e)
+                print(f"Bad urls: {bad}")
+                pass
 
 
 if __name__ == "__main__":
