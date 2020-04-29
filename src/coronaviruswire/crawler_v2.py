@@ -54,7 +54,7 @@ crawldb = db["moderationtable_v2"]
 seen = set([row["article_url"] for row in crawldb])
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 5
+MAX_ARTICLES_PER_SOURCE = 50
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
@@ -315,12 +315,21 @@ async def main():
                 parsed.parse()
                 parsed.nlp()
                 site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
-                latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
-                longitude = float(news_sources[site]["long"].split("deg")[0])
-
-                # latitude input is wrong, see pointAdaptor for more details
-                sourcelonglat = Point(longitude, latitude)
-                sourceloc = news_sources[site]["loc"]
+                if site in news_sources:
+                    self.sourceloc = news_sources[site]["loc"]
+                    self.author = news_sources[site]["name"]
+                else:
+                    for k, v in news_sources.items():
+                        if site in k or k in site:
+                            sourceloc = v['loc']
+                            author = v['name']
+                            break
+                # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
+                # longitude = float(news_sources[site]["long"].split("deg")[0])
+                #
+                # # latitude input is wrong, see pointAdaptor for more details
+                # sourcelonglat = Point(longitude, latitude)
+                # sourceloc = news_sources[site]["loc"]
                 sourcecountry = "us"
 
                 article_id = str(uuid.uuid4())
