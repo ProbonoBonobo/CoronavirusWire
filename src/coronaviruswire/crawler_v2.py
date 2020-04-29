@@ -249,7 +249,7 @@ async def fetch_sitemap(url):
     try:
         async with httpx.AsyncClient() as client:
             try:
-                res = await client.get(url, timeout=200, headers=default_headers)
+                res = await client.get(url, timeout=10, headers=default_headers)
             except:
                 return
     except:
@@ -273,7 +273,7 @@ async def fetch_content(url):
     try:
         async with httpx.AsyncClient() as client:
             try:
-                res = await client.get(url, timeout=200, headers=default_headers)
+                res = await client.get(url, timeout=10, headers=default_headers)
             except:
                 return
             print(f"Got response from {url}")
