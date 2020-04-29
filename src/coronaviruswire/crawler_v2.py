@@ -69,7 +69,7 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set([row['article_url'] for row in crawldb] + list(seen_urls))
+    seen = set()
 
 
 def flatten_list(alist):
