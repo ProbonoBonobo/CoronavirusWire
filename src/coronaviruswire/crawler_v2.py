@@ -110,6 +110,7 @@ class Article:
                 value = format_text(value)
             setattr(self, v, value)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
+        self.author = site
         # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
         # longitude = float(news_sources[site]["long"].split("deg")[0])
         #
