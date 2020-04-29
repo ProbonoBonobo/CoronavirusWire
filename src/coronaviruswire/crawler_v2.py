@@ -263,9 +263,9 @@ async def fetch_sitemap(url):
         print(f"url #{i} :: {text}")
         if text in chan.seen:
             continue
-        chan.queue.append(text)
+        chan.queue.appendleft(text)
         chan.seen.add(text)
-    chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
+    # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
 
 async def fetch_content(url):
@@ -294,7 +294,7 @@ async def main():
     sitemap_urls = set(queue)
     chan.queue = deque(queue, len(queue))
     while keep_going:
-        chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
+
         print(f"Initializing nursery")
         async with trio.open_nursery() as nursery:
             for i in range(min(len(chan.queue), MAX_REQUESTS)):
@@ -307,7 +307,9 @@ async def main():
                 else:
                     nursery.start_soon(fetch_content, next_url)
                     print(f"Got url {next_url}")
+
         if len(chan.output) >= BUFFER_SIZE or not bool(chan.queue):
+            chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
             processed = []
             for url, html in chan.output:
                 parsed = NewsArticle(url)
@@ -316,8 +318,8 @@ async def main():
                 parsed.nlp()
                 site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(parsed.source_url).netloc))
                 if site in news_sources:
-                    self.sourceloc = news_sources[site]["loc"]
-                    self.author = news_sources[site]["name"]
+                    sourceloc = news_sources[site]["loc"]
+                    author = news_sources[site]["name"]
                 else:
                     for k, v in news_sources.items():
                         if site in k or k in site:
