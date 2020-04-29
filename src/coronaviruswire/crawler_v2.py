@@ -307,7 +307,8 @@ async def main():
         async with trio.open_nursery() as nursery:
             for i in range(min(len(chan.queue), MAX_REQUESTS)):
                 print(f"Processing item {i}")
-                next_url = chan.queue.popleft()
+                raw_url = chan.queue.popleft()
+                next_url = url_normalize(raw_url.strip())
                 if next_url in sitemap_urls:
                     print(f"Starting {next_url}")
                     nursery.start_soon(fetch_sitemap, next_url)
