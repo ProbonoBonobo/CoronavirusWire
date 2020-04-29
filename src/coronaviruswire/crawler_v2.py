@@ -261,7 +261,31 @@ async def fetch_sitemap(sitemap_url):
         async with httpx.AsyncClient() as client:
             try:
                 print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
-                res = await client.get(sitemap_url, timeout=60, headers=default_headers)
+                res = await client.get(sitemap_url, timeout=15, headers=default_headers)
+                soup = BeautifulSoup(res.content, "xml")
+                urls = soup.find_all("url")
+
+                total = len(urls)
+                print(magenta(
+                    "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
+                found = 0
+                dups = 0
+                for i, url in enumerate(urls):
+                    url_string = url.find("loc").text.strip()
+                    if found >= MAX_ARTICLES_PER_SOURCE:
+                        continue
+                    # text = url_normalize(url.find("loc").text.strip())
+                    if url_string in chan.seen:
+                        dups += 1
+                        continue
+
+                    found += 1
+
+                    print(magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}")
+                    chan.queue.append(url_string)
+                    # chan.seen.add(url_string)
+                print(
+                    f"{magenta('[ fetch_sitemap ]')} :: Extracted {green(str(found) + ' new urls')} and {yellow(str(dups) + ' duplicates')} (of {total} total) from sitemap: {sitemap_url}")
             except Exception as e:
                 print(magenta(f"[ fetch_sitemap ] ") + red(f":: Failed to fetch url: {sitemap_url}. {e.__class__.__name__} :: {e}"))
                 return
@@ -269,29 +293,7 @@ async def fetch_sitemap(sitemap_url):
         print(magenta(f"[ fetch_sitemap ] ") + red(f":: Encountered an unknown exception while fetching url {sitemap_url}: {e.__class__.__name__} :: {e}"))
         return
 
-    soup = BeautifulSoup(res.content, "xml")
-    urls = soup.find_all("url")
 
-    total = len(urls)
-    print(magenta("[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
-    found = 0
-    dups = 0
-    for i, url in enumerate(urls):
-        url_string = url.find("loc").text.strip()
-        if found >= MAX_ARTICLES_PER_SOURCE:
-            break
-        # text = url_normalize(url.find("loc").text.strip())
-
-        if url_string in chan.seen:
-            dups += 1
-            continue
-
-        found += 1
-
-        print(magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}")
-        chan.queue.append(url_string)
-        #chan.seen.add(url_string)
-    print(f"{magenta('[ fetch_sitemap ]')} :: Extracted {green(str(found) + ' new urls')} and {yellow(str(dups) + ' duplicates')} (of {total} total) from sitemap: {sitemap_url}")
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
 
