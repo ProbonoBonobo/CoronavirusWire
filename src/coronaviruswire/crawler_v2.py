@@ -54,7 +54,7 @@ create_moderation_table()
 crawldb = db["moderationtable_v2"]
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 500
+MAX_ARTICLES_PER_SOURCE = 50
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
