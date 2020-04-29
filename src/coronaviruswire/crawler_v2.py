@@ -54,7 +54,7 @@ create_moderation_table()
 crawldb = db["moderationtable_v2"]
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 50
+MAX_ARTICLES_PER_SOURCE = 500
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
@@ -334,7 +334,7 @@ async def main():
                         city, state = sourceloc.split(", ")
                     except:
                         city = sourceloc
-                        
+
                 else:
                     for k, v in news_sources.items():
                         if site in k or k in site:
