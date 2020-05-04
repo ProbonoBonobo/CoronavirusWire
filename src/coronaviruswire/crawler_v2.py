@@ -173,7 +173,9 @@ class Article:
     def _headline(self):
         headline = []
         headline = self._soup.find("h1")
-        return headline.text
+        if headline and hasattr(headline, 'text') and headline.text:
+            return headline.text
+        return ""
 
 
     @property
@@ -277,39 +279,11 @@ async def fetch_sitemap(sitemap_url):
         async with httpx.AsyncClient() as client:
             try:
                 # print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
-                res = await client.get(sitemap_url, timeout=7, headers=default_headers)
+                res = await client.get(sitemap_url, timeout=20, headers=default_headers)
                 # no_weird_characters = normalize('NFKD', unescape('NKFD', s.decode(res.encoding)))
                 # maybe preemptively resolve escaped utf-8 characters to their unescaped equivalents?
                 # hopefully_sanitized = no_weird_characters.encode('utf-8').decode('unicode-escape').encode('utf-8')
-                soup = BeautifulSoup(res.content, "xml")
-                urls = soup.find_all("url")
 
-                # total = len(urls)
-                # print(magenta(
-                #     "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
-                found = 0
-                dups = 0
-                for url in urls:
-                    url_string = url.find("loc").text
-                    try:
-                        url_string = url_string.strip()
-                    except:
-                        url_string = url_string
-                    if found >= MAX_ARTICLES_PER_SOURCE:
-                        continue
-                    # text = url_normalize(url.find("loc").text.strip())
-                    if url_string in chan.seen:
-                        dups += 1
-                        continue
-
-                    found += 1
-
-                    print(
-                        magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}"
-                    )
-                    chan.queue.append(url_string)
-
-                    chan.seen.add(url_string)
 
             except Exception as e:
                 print(
@@ -327,6 +301,36 @@ async def fetch_sitemap(sitemap_url):
             )
         )
         return
+    soup = BeautifulSoup(res.content, "xml")
+    urls = soup.find_all("loc")
+    print(magenta("[ fetch_sitemap ] "), f":: Extracted {len(urls)} from sitemap: {sitemap_url}")
+    # total = len(urls)
+    # print(magenta(
+    #     "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
+    found = 0
+    dups = 0
+    for url in urls:
+
+        url_string = url.text
+        try:
+            url_string = url_string.strip()
+        except:
+            url_string = url_string
+        if found >= MAX_ARTICLES_PER_SOURCE:
+            break
+        # text = url_normalize(url.find("loc").text.strip())
+        elif url_string in chan.seen:
+            dups += 1
+            continue
+
+        found += 1
+
+        print(
+            magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}"
+        )
+        chan.queue.append(url_string)
+
+        chan.seen.add(url_string)
 
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
@@ -368,7 +372,8 @@ async def fetch_content(url):
 async def main():
     keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
-    queue = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
+    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
+    queue = random.sample(_l, len(_l))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
         queue = random.sample(queue, MAX_SOURCES)
@@ -394,8 +399,7 @@ async def main():
                     nursery.start_soon(fetch_sitemap, raw_url)
                     # sitemap payloads seem to be exceeding the maximum buffer size for asyncio operations...
                     # try requesting only 2 at a time?
-                    if i >= 1:
-                        break
+
                 else:
                     print(
                         cyan("[ eventloop ]")
