@@ -703,7 +703,7 @@ def deduplicate_moderation_table(tab):
         row["article_id"]: row["raw_content"] for row in tab if row["raw_content"]
     }
     processed = [
-        {"article_id": article["article_id"], "content": article["after"], "raw_content": article['before']}
+        {"article_id": article["id"], "content": article["after"], "raw_content": article['before']}
         for article in deduplicate_content(updates)
     ]
 
