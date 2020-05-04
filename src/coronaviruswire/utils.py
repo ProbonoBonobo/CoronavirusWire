@@ -669,7 +669,7 @@ def deduplicate_content(index, max_count=3):
     _formatted = {}
     output = []
     for id, article in index.items():
-        _lines = [format_text(line.strip()) for line in article.split("\n")]
+        _lines = [line.strip() for line in article.split("\n")]
         _formatted[id] = _lines
         lines.extend(_lines)
 
@@ -703,9 +703,13 @@ def deduplicate_moderation_table(tab):
         row["article_id"]: row["raw_content"] for row in tab if row["raw_content"]
     }
     processed = [
-        {"article_id": article["id"], "content": article["after"]}
+        {"article_id": article["article_id"], "content": article["after"], "raw_content": article['before']}
         for article in deduplicate_content(updates)
     ]
+
+    for i, article in enumerate(processed):
+        print(f"======================================================= BEFORE =======================================================\n\n{article['raw_content']}\n\n=================================================================================================================\n\n\n\n==================================================================================== AFTER ===============================================================\n\n {article['content']}\n\n================================================================================================\n\n ")
+        print(f"(end of article {i})\n\n\n\n")
     tab.update_many(processed, ["article_id"])
     return processed
 
