@@ -57,10 +57,10 @@ create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 16
+MAX_SOURCES = 2
 MAX_ARTICLES_PER_SOURCE = 2
 MAX_REQUESTS = 4
-BUFFER_SIZE = 4
+BUFFER_SIZE = 2
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -99,9 +99,9 @@ class Article:
         "keywords": "keywords",
     }
 
-    def __init__(self, url, dom, schema):
+    def __init__(self, url, dom, schema, soup):
         register_adapter(Point, adapt_point)
-
+        self._soup = soup
         self._dom = dom
         self.schema = schema
         self.article_url = url_normalize(url)
@@ -112,8 +112,9 @@ class Article:
                 # compute the value from this object's property methods
                 value = getattr(self, f"_{k}")
             if isinstance(value, str):
-                value = format_text(value)
+                pass
             setattr(self, v, value)
+        self.raw_content = copy(self.content)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
         # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
@@ -136,7 +137,7 @@ class Article:
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
 
-        self.raw_content = copy(self._articleBody)
+
 
         # del self._dom
         # del self.schema
@@ -154,7 +155,7 @@ class Article:
                 for node in self._dom.xpath("//p")
                 if node.text_content() and node.text_content().strip()
             ]
-            return format_text(text) if text else ""
+
 
         except Exception as e:
             print(e.__class__.__name__, e)
@@ -170,15 +171,10 @@ class Article:
 
     @property
     def _headline(self):
-        return format_text(
-            "\n".join(
-                [
-                    node.text.encode("ISO-8859-1").decode("utf-8").strip()
-                    for node in self._dom.xpath("//h1")
-                    if node.text
-                ]
-            )
-        )
+        headline = []
+        headline = self._soup.find("h1")
+        return headline.text
+
 
     @property
     def _articleBody(self):
@@ -193,41 +189,17 @@ class Article:
                 pass
             
             try:
-                text = node.text.encode("utf-8").decode("utf-8")
+                text = text.encode("utf-8").decode("utf-8")
             except:
                 pass
             if text:
-                extracted = text
+                extracted = text.strip()
             
-        for node in self._dom.xpath("//p"):
-            if node.text:
-                text = node.text
-                
+        for node in self._soup.find_all("p"):
+            text = node.text
+            if text and text.strip():
+                body.append(text.strip())
 
-                try:
-                    text = normalize("NFKD", unescape(text))
-                except:
-                    pass
-                try:
-                    text = node.text.encode("utf-8").decode("utf-8")
-                except:
-                    pass
-                if text:
-                    body.append(text)
-            for node in node.iterdescendants():
-                if node.text:
-                    text = node.text
-                    try:
-                        text = normalize("NFKD", unescape(text))
-                    except:
-                        pass
-                    try:
-                        text = node.text.encode("utf-8").decode('utf-8')
-                    except:
-                        pass
-                    if text:
-                        body.append(text)
-                    
         fallback = " \n ".join(body)
         selected = list(sorted([extracted, fallback], key=len))[-1]
         print(f"Selected text is:\n\n{selected}\n\n========================================================\nEnd of url: {self.article_url}")
@@ -641,14 +613,15 @@ async def main():
 
                 # if not published:
                 dom = parse_html(html)
+                soup = BeautifulSoup(html)
                 metadata = extract_schemata(dom)
-                article = Article(url, dom, metadata)
+                article = Article(url, dom, metadata, soup)
                 published = article._datePublished
                 modified = article._dateModified
 
                 row = {
-                    "raw_content": unidecode(article._articleBody),
-                    "content": unidecode(article._articleBody),
+                    "raw_content": unidecode(article.content),
+                    "content": unidecode(article.content),
                     "title": unidecode(parsed.title),
                     "summary": unidecode(description),
                     "keywords": keywords,
