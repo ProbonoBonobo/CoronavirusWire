@@ -57,10 +57,10 @@ create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 5
-MAX_ARTICLES_PER_SOURCE = 20
+MAX_SOURCES = 200
+MAX_ARTICLES_PER_SOURCE = 50
 MAX_REQUESTS = 4
-BUFFER_SIZE = 20
+BUFFER_SIZE = 50
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -73,7 +73,7 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set()
+    seen = set(row['article_url'] for row in crawldb)
 
 
 def flatten_list(alist):
