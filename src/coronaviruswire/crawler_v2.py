@@ -57,10 +57,10 @@ create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 2
-MAX_ARTICLES_PER_SOURCE = 2
+MAX_SOURCES = 100
+MAX_ARTICLES_PER_SOURCE = 20
 MAX_REQUESTS = 4
-BUFFER_SIZE = 2
+BUFFER_SIZE = 50
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -277,7 +277,7 @@ async def fetch_sitemap(sitemap_url):
         async with httpx.AsyncClient() as client:
             try:
                 # print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
-                res = await client.get(sitemap_url, timeout=15, headers=default_headers)
+                res = await client.get(sitemap_url, timeout=7, headers=default_headers)
                 # no_weird_characters = normalize('NFKD', unescape('NKFD', s.decode(res.encoding)))
                 # maybe preemptively resolve escaped utf-8 characters to their unescaped equivalents?
                 # hopefully_sanitized = no_weird_characters.encode('utf-8').decode('unicode-escape').encode('utf-8')
@@ -290,7 +290,11 @@ async def fetch_sitemap(sitemap_url):
                 found = 0
                 dups = 0
                 for url in urls:
-                    url_string = url.find("loc").text.strip()
+                    url_string = url.find("loc").text
+                    try:
+                        url_string = url_string.strip()
+                    except:
+                        url_string = url_string
                     if found >= MAX_ARTICLES_PER_SOURCE:
                         continue
                     # text = url_normalize(url.find("loc").text.strip())
@@ -707,5 +711,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    deduplicate_moderation_table(crawldb)
     trio.run(main)
-    # deduplicate_moderation_table(crawldb)
+    deduplicate_moderation_table(crawldb)
