@@ -49,17 +49,17 @@ import uuid
 
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("../../lib/newspapers.tsv")
+news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers.tsv")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 10
+MAX_SOURCES = 10
+MAX_ARTICLES_PER_SOURCE = 3
 MAX_REQUESTS = 5
-BUFFER_SIZE = 100
+BUFFER_SIZE = 10
 
 seen_urls  = set([row['article_url'] for row in crawldb])
 try:
@@ -136,8 +136,8 @@ class Article:
 
         self.raw_content = copy(self._articleBody)
 
-        del self._dom
-        del self.schema
+        # del self._dom
+        # del self.schema
         super().__init__()
 
     @property
@@ -169,7 +169,7 @@ class Article:
     @property
     def _headline(self):
         return format_text("\n".join(
-            [node.text.strip() for node in self._dom.xpath("//h1") if node.text]
+            [node.text.encode("ISO-8859-1").decode("utf-8").strip() for node in self._dom.xpath("//h1") if node.text]
         ))
 
     @property
@@ -178,13 +178,14 @@ class Article:
         extracted = ""
 
         if 'articleBody' in self.schema:
-            extracted = self.schema['articleBody']
+            extracted = self.schema['articleBody'].encode("ISO-8859-1").decode("utf-8")
         for node in self._dom.xpath("//p"):
-            if node and node.text_content():
-                for line in node.text_content().strip().split("\n"):
-                    txt = line.strip()
-                    if txt and len(txt) > 10:
-                        body.append(txt)
+            if node.text:
+                body.append(node.text.encode("ISO-8859-1").decode("utf-8"))
+            for n in node.iterdescendants():
+                if n.text:
+                    txt = n.text
+                    print(txt.encode("ISO-8859-1").decode("utf-8"))
         fallback = " \n ".join(body)
         return format_text(list(sorted([extracted, fallback], key=len))[-1])
 
@@ -260,17 +261,20 @@ async def fetch_sitemap(sitemap_url):
     try:
         async with httpx.AsyncClient() as client:
             try:
-                print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
+                # print(magenta(f"[ fetch_sitemap ] ") + f":: Initiating request for sitemap: {sitemap_url}")
                 res = await client.get(sitemap_url, timeout=15, headers=default_headers)
+                # no_weird_characters = normalize('NFKD', unescape('NKFD', s.decode(res.encoding)))
+                # maybe preemptively resolve escaped utf-8 characters to their unescaped equivalents?
+                # hopefully_sanitized = no_weird_characters.encode('utf-8').decode('unicode-escape').encode('utf-8')
                 soup = BeautifulSoup(res.content, "xml")
                 urls = soup.find_all("url")
 
-                total = len(urls)
-                print(magenta(
-                    "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
+                # total = len(urls)
+                # print(magenta(
+                #     "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
                 found = 0
                 dups = 0
-                for i, url in enumerate(urls):
+                for url in urls:
                     url_string = url.find("loc").text.strip()
                     if found >= MAX_ARTICLES_PER_SOURCE:
                         continue
@@ -283,9 +287,9 @@ async def fetch_sitemap(sitemap_url):
 
                     print(magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}")
                     chan.queue.append(url_string)
-                    # chan.seen.add(url_string)
-                print(
-                    f"{magenta('[ fetch_sitemap ]')} :: Extracted {green(str(found) + ' new urls')} and {yellow(str(dups) + ' duplicates')} (of {total} total) from sitemap: {sitemap_url}")
+
+                    chan.seen.add(url_string)
+
             except Exception as e:
                 print(magenta(f"[ fetch_sitemap ] ") + red(f":: Failed to fetch url: {sitemap_url}. {e.__class__.__name__} :: {e}"))
                 return
@@ -300,7 +304,7 @@ async def fetch_sitemap(sitemap_url):
 async def fetch_content(url):
     """Delegate function for fetching a content URL, which appends the response to the output channel"""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             try:
                 print(f"{blue('[ fetch_content ]')} :: Initiating request for url: {url}")
                 res = await client.get(url, timeout=10, headers=default_headers)
@@ -340,7 +344,7 @@ async def main():
                     nursery.start_soon(fetch_sitemap, raw_url)
                     # sitemap payloads seem to be exceeding the maximum buffer size for asyncio operations...
                     # try requesting only 2 at a time?
-                    if i >= 2:
+                    if i >= 1:
                         break
                 else:
                     print(cyan("[ eventloop ]") + f" :: Scheduling {magenta('content crawl')} for url: {raw_url}")
@@ -489,17 +493,17 @@ async def main():
                         category.append(v)
 
 
-                if not published:
-                    dom = parse_html(html)
-                    metadata = extract_schemata(dom)
-                    article = Article(url, dom, metadata)
-                    published = article._datePublished
-                    modified = article._dateModified
+                # if not published:
+                dom = parse_html(html)
+                metadata = extract_schemata(dom)
+                article = Article(url, dom, metadata)
+                published = article._datePublished
+                modified = article._dateModified
 
 
                 row = {
-                    "raw_content": unidecode(parsed.text),
-                    "content": unidecode(parsed.text),
+                    "raw_content": unidecode(article._articleBody),
+                    "content": unidecode(article._articleBody),
                     "title": unidecode(parsed.title),
                     "summary": unidecode(description),
                     "keywords": keywords,
@@ -563,4 +567,4 @@ async def main():
 
 if __name__ == "__main__":
     trio.run(main)
-    deduplicate_moderation_table(crawldb)
+    # deduplicate_moderation_table(crawldb)
