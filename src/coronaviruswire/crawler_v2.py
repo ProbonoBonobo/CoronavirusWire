@@ -24,6 +24,7 @@ from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
 from munch import Munch
 from dateutil.parser import parse as parse_timestamp
+from unicodedata import normalize
 from lxml.html import fromstring as parse_html
 from urllib.parse import urlparse
 from newspaper import Article as NewsArticle
@@ -49,17 +50,17 @@ import uuid
 
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers.tsv")
+news_sources = load_news_sources("lib/newspapers.tsv")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 10
-MAX_ARTICLES_PER_SOURCE = 3
-MAX_REQUESTS = 5
-BUFFER_SIZE = 10
+MAX_SOURCES = 16
+MAX_ARTICLES_PER_SOURCE = 2
+MAX_REQUESTS = 4
+BUFFER_SIZE = 4
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -103,6 +104,7 @@ class Article:
 
         self._dom = dom
         self.schema = schema
+        self.article_url = url_normalize(url)
         for k, v in self.required_attrs.items():
             if k in schema and schema[k]:
                 value = schema[k]
@@ -129,7 +131,7 @@ class Article:
                     self.author = v["name"]
                     break
         self.sourcecountry = "us"
-        self.article_url = url_normalize(url)
+
 
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
@@ -184,16 +186,52 @@ class Article:
         extracted = ""
 
         if "articleBody" in self.schema:
-            extracted = self.schema["articleBody"].encode("ISO-8859-1").decode("utf-8")
+            text = self.schema['articleBody']
+            try:
+                text = normalize("NFKD", unescape(text))
+            except:
+                pass
+            
+            try:
+                text = node.text.encode("utf-8").decode("utf-8")
+            except:
+                pass
+            if text:
+                extracted = text
+            
         for node in self._dom.xpath("//p"):
             if node.text:
-                body.append(node.text.encode("ISO-8859-1").decode("utf-8"))
-            for n in node.iterdescendants():
-                if n.text:
-                    txt = n.text
-                    print(txt.encode("ISO-8859-1").decode("utf-8"))
+                text = node.text
+                
+
+                try:
+                    text = normalize("NFKD", unescape(text))
+                except:
+                    pass
+                try:
+                    text = node.text.encode("utf-8").decode("utf-8")
+                except:
+                    pass
+                if text:
+                    body.append(text)
+            for node in node.iterdescendants():
+                if node.text:
+                    text = node.text
+                    try:
+                        text = normalize("NFKD", unescape(text))
+                    except:
+                        pass
+                    try:
+                        text = node.text.encode("utf-8").decode('utf-8')
+                    except:
+                        pass
+                    if text:
+                        body.append(text)
+                    
         fallback = " \n ".join(body)
-        return format_text(list(sorted([extracted, fallback], key=len))[-1])
+        selected = list(sorted([extracted, fallback], key=len))[-1]
+        print(f"Selected text is:\n\n{selected}\n\n========================================================\nEnd of url: {self.article_url}")
+        return selected
 
 
 def extract_schemata(dom):
