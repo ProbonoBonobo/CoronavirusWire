@@ -4,6 +4,7 @@ from src.coronaviruswire.utils import search_for_place, search, calculate_boundi
 from math import sqrt
 import datetime as dt
 
+
 def load_csv():
     """>>> counties["features"][0]
      {'type': 'Feature',
@@ -272,7 +273,7 @@ if __name__ == "__main__":
     import time
     import pandas as pd
     from src.coronaviruswire.common import db
-    from src.coronaviruswire.pointAdaptor import (Point, adapt_point, adapt_point_array)
+    from src.coronaviruswire.pointAdaptor import Point, adapt_point, adapt_point_array
     from psycopg2.extensions import adapt, register_adapter, AsIs
     import random
     import numpy as np
@@ -284,17 +285,16 @@ if __name__ == "__main__":
     import json
     import requests
 
-
     # CONSTANTS
     LIMIT_ARTICLES = 50
-
 
     # Initialization
     register_adapter(Point, adapt_point)
 
-
     # this loads the county polygons for the plotly diagrams below
-    countiesJSON = requests.get("https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
+    countiesJSON = requests.get(
+        "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
+    )
     counties = countiesJSON.json()
 
     crawldb = db["moderationtable"]
@@ -310,7 +310,9 @@ if __name__ == "__main__":
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
     rows = [
-        row for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+        row
+        for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES)
+        if len(list(row["ner"].keys())) <= 30
     ]
 
     print(f"Found {len(rows)} unprocessed articles!")
@@ -457,7 +459,7 @@ if __name__ == "__main__":
             print(locations)
             print("**************************************")
 
-            db_specificity = 'city'
+            db_specificity = "city"
             region_override = None
             db_list = []
 
@@ -486,24 +488,23 @@ if __name__ == "__main__":
                             print(f"No fips code for state {state}, county {county}")
                         fips_values[fips].append(ent)
                     elif state:
-                        db_specificity = 'regional'
+                        db_specificity = "regional"
                         region_override = state
                         for county, fips_code in fips_index[state].items():
                             fips_values[fips_code].append(ent)
 
                     # gather all data into db_list
                     db_item = {
-                        'entity': entity,
-                        'label': ent,
-                        'coord': Point(lng, lt),
-                        'fips': str(fips),
-                        'locref': len(ent),
-                        'city': county,
-                        'region': state
+                        "entity": entity,
+                        "label": ent,
+                        "coord": Point(lng, lt),
+                        "fips": str(fips),
+                        "locref": len(ent),
+                        "city": county,
+                        "region": state,
                     }
 
                     db_list.append(db_item)
-
 
             # **************************
             # Database Stuff
@@ -511,51 +512,50 @@ if __name__ == "__main__":
                 continue
 
             # Sort by most to least entity references
-            db_list.sort(key=lambda obj: obj['locref'], reverse=True)
+            db_list.sort(key=lambda obj: obj["locref"], reverse=True)
             print(f"db_list: {db_list}")
 
             item0 = db_list[0]
             num_fips = len(db_list)
             if num_fips >= 5:
-                db_specificity = 'regional'
+                db_specificity = "regional"
 
-            db_region = item0['region']
-            db_city = item0['city']
-            db_longlat = item0['coord']
+            db_region = item0["region"]
+            db_city = item0["city"]
+            db_longlat = item0["coord"]
 
-            db_coords_array = [item['coord'] for item in db_list]
+            db_coords_array = [item["coord"] for item in db_list]
             db_coords = adapt_point_array(db_coords_array)
 
             # db_coords = [item['coord'] for item in db_list]
             print("db_coords")
             print(db_coords)
-            db_cities = [item['city'] for item in db_list]
-            db_regions = [item['region'] for item in db_list]
-            db_labels = [item['label'] for item in db_list]
-            db_entities = [item['entity'] for item in db_list]
-            db_fips = [item['fips'] for item in db_list]
-            db_locrefs = [item['locref'] for item in db_list]
+            db_cities = [item["city"] for item in db_list]
+            db_regions = [item["region"] for item in db_list]
+            db_labels = [item["label"] for item in db_list]
+            db_entities = [item["entity"] for item in db_list]
+            db_fips = [item["fips"] for item in db_list]
+            db_locrefs = [item["locref"] for item in db_list]
 
             new_row = dict(
                 article_id=row["article_id"],
                 specificity=db_specificity,
-                country='us',
+                country="us",
                 region=db_region,
-                city = db_city,
-                longlat = db_longlat,
-                coords = db_coords,
-                cities = db_cities,
-                regions = db_regions,
-                labels = db_labels,
-                entities = db_entities,
-                fips = db_fips,
-                locrefs = db_locrefs,
-                updated_at = dt.datetime.utcnow().replace(microsecond=0),
-                updated_by = 'fips',
-                lang = 'en'
+                city=db_city,
+                longlat=db_longlat,
+                coords=db_coords,
+                cities=db_cities,
+                regions=db_regions,
+                labels=db_labels,
+                entities=db_entities,
+                fips=db_fips,
+                locrefs=db_locrefs,
+                updated_at=dt.datetime.utcnow().replace(microsecond=0),
+                updated_by="fips",
+                lang="en",
             )
-            crawldb.update(new_row, ['article_id'])
-
+            crawldb.update(new_row, ["article_id"])
 
             # ********************************************
 
@@ -568,8 +568,6 @@ if __name__ == "__main__":
 
             # display_map(tx_fips, counties)
             # print(json.dumps(geo_results, indent=4))
-
-
 
 
 def display_map(tx_fips, counties):

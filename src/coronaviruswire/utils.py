@@ -63,7 +63,7 @@ def parse_html(responses):
     return responses
 
 
-def iter_csv(fp="./lib/newspapers.csv", delimiter="\t"):
+def iter_csv(fp="../../lib/newspapers.csv", delimiter="\t"):
     with open(fp, "r") as f:
         f_csv = csv.DictReader(f, delimiter=delimiter)
         cols = f_csv.fieldnames
@@ -71,7 +71,7 @@ def iter_csv(fp="./lib/newspapers.csv", delimiter="\t"):
             yield dict(row.items())
 
 
-def load_csv(fp="./lib/newspapers.tsv", delimiter="\t"):
+def load_csv(fp="../../lib/newspapers.tsv", delimiter="\t"):
     return list(iter_csv(fp, delimiter))
 
 
@@ -99,6 +99,8 @@ def remove_cruft(list_of_articles):
 
 
 from collections import deque
+
+
 def load_news_sources(fp="./lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
@@ -106,6 +108,10 @@ def load_news_sources(fp="./lib/newspapers.tsv"):
     for row in list(news):
         resolved_urls = []
         for k, v in list(row.items()):
+            print(k, v)
+            if not k:
+                print(red(f"Bad row in newspapers.tsv: {row}"))
+                continue
             if len(resolved_urls) > 10:
                 break
             if not v:
@@ -118,22 +124,27 @@ def load_news_sources(fp="./lib/newspapers.tsv"):
         print("resolved_urls")
         print(resolved_urls)
         print(row)
-        url = url_normalize(row['url']).strip().lower()
+        url = url_normalize(row["url"]).strip().lower()
         parsed = urlparse(url)
-        row['url'] = url
-        row['site'] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
-        row['sitemap_urls'] = resolved_urls
-        if row['sitemap_urls']:
-            loaded[row['site']] = row
+        row["url"] = url
+        row["site"] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
+        row["sitemap_urls"] = resolved_urls
+        if row["sitemap_urls"]:
+            loaded[row["site"]] = row
     return loaded
 
-def load_news_sources(fp="./lib/newspapers.tsv"):
+
+def load_news_sources(fp="../../lib/newspapers.tsv"):
     fp = os.path.abspath(fp)
     news = load_csv(fp)
     loaded = {}
     for row in list(news):
         resolved_urls = []
         for k, v in list(row.items()):
+            print(k, v)
+            if not k:
+                print(red(f"Bad row in newspapers.tsv: {row}"))
+                continue
             if len(resolved_urls) > 10:
                 break
             if not v:
@@ -271,23 +282,25 @@ def cache_queries(func):
     return wrapped
 
 
-def initialize_kmedoids_model(
-    path_to_points="./lib/us_metros_scraped_geocoords.tsv"
-):
+def initialize_kmedoids_model(path_to_points="./lib/us_metros_scraped_geocoords.tsv"):
 
     import numpy as np
     from sklearn.cluster import KMeans
 
     coords = []
     labels = []
-    for row in load_csv(path_to_points, delimiter="\t"):
-        try:
-            coords.append(list(deg2dec((row["latitude"], row["longitude"]))))
-            labels.append(row["parent"])
-        except Exception as e:
-            print(e)
+    if isinstance(path_to_points, str):
+        for row in load_csv(path_to_points, delimiter="\t"):
+            try:
+                coords.append(list(deg2dec((row["latitude"], row["longitude"]))))
+                labels.append(row["parent"])
+            except Exception as e:
+                print(e)
+    else:
+        coords = path_to_points
     arr = np.array([c for c in coords if c and len(c) == 2])
-    k = 64
+    print(f"Points: {len(arr)}")
+    k = 32
     from pyclustering.cluster.kmedoids import kmedoids
 
     # Load list of points for cluster analysis.
@@ -301,11 +314,13 @@ def initialize_kmedoids_model(
     clusters = kmedoids_instance.get_clusters()
     # Show allocated clusters.
     print(clusters)
-    return kmedoids_instance
+    # return kmedoids_instance
     # Display clusters.
-    # visualizer = cluster_visualizer()
-    # visualizer.append_clusters(clusters, sample)
-    # visualizer.show()
+    from pyclustering.cluster import cluster_visualizer
+
+    visualizer = cluster_visualizer()
+    visualizer.append_clusters(clusters, arr)
+    visualizer.show()
 
 
 from munch import Munch
@@ -731,9 +746,14 @@ def deduplicate_table(tab):
 
 
 if __name__ == "__main__":
+    import pickle
 
-    crawldb = db["moderationtable"]
-    deduplicate_moderation_table(crawldb)
+    with open("../../lib/us_geocoords_unlabeled.pkl", "rb") as f:
+        data = pickle.load(f)
+    print(len(data))
+    model = initialize_kmedoids_model(data)
+    # crawldb = db["moderationtable"]
+    # deduplicate_moderation_table(crawldb)
     # responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
     #                         "news.ycombinator.com")
     #

@@ -2,22 +2,23 @@ import re
 import dataset
 import psycopg2
 
-# db_config = {"user": "kz",
+db_config = {
+    "user": "kz",
+    "password": "admin",
+    "host": "127.0.0.1",
+    "port": "5432",
+    "database": "cvwire",
+}
+# db_config = {"user": "postgres",
 #              "password": "admin",
-#              "host": "127.0.0.1",
+#              "host": "34.83.188.109",
 #              "port": "5432",
-#              "database": "cvwire"}
-db_config = {"user": "postgres",
-             "password": "admin",
-             "host": "34.83.188.109",
-             "port": "5432",
-             "database": "postgres"}
+#              "database": "postgres"}
 
 db = dataset.connect(
     f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
 )
 conn = psycopg2.connect(**db_config)
-
 
 
 def create_moderation_table():
@@ -41,6 +42,7 @@ def create_moderation_table():
 
     NER          JSON,
     GEOTAGS      JSON,
+
 
     HAS_NER      BOOLEAN DEFAULT FALSE,
     HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
@@ -156,9 +158,7 @@ patterns = {
 
 # most sites simply won't respond unless you identify yourself via user-agent string
 default_headers = {
-    "user-agent": "Mozilla/5.0 (X11; Linux x86_64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/79.0.3945.130 Safari/537.36",
+    "user-agent": """Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36""",
     "dnt": "1",
     "cookie": "nyt-a=29482ninwfwe_efw;",
 }
