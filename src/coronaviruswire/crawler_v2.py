@@ -57,10 +57,10 @@ create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 100
+MAX_SOURCES = 5
 MAX_ARTICLES_PER_SOURCE = 20
 MAX_REQUESTS = 4
-BUFFER_SIZE = 50
+BUFFER_SIZE = 20
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -73,7 +73,7 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set(seen_urls)
+    seen = set()
 
 
 def flatten_list(alist):
@@ -234,9 +234,12 @@ def extract_schemata(dom):
                 if len(kw.strip()) > 5
             ]
         else:
-            raise TypeError(
+            err = TypeError(
+
                 f"Weird type for keywords: {type(keywords).__class__.__name__} :: {keywords}"
             )
+            print(err)
+            return []
 
     schemata = dom.xpath("//script[contains(@type, 'json')]")
     objects = []
@@ -301,36 +304,41 @@ async def fetch_sitemap(sitemap_url):
             )
         )
         return
-    soup = BeautifulSoup(res.content, "xml")
-    urls = soup.find_all("loc")
+    soup = BeautifulSoup(res.content, from_encoding=res.encoding)
+    elements = soup.findAll("loc", limit=MAX_ARTICLES_PER_SOURCE*2)
+    urls = []
+    for elem in elements:
+        url = elem.text
+        if url and url.strip() not in chan.seen:
+            urls.append(url.strip())
+
     print(magenta("[ fetch_sitemap ] "), f":: Extracted {len(urls)} from sitemap: {sitemap_url}")
+    chan.queue.extend(urls)
     # total = len(urls)
     # print(magenta(
     #     "[ fetch_sitemap ] ") + f":: Received {green(str(len(res.content)) + ' bytes')} and extracted {green(total)} {green('total urls')} from sitemap: {sitemap_url}")
-    found = 0
-    dups = 0
-    for url in urls:
+    # found = 0
+    # dups = 0
+    # for url_string in urls:
+    #     try:
+    #         url_string = url_string.strip()
+    #     except:
+    #         url_string = url_string
+    #     if found >= MAX_ARTICLES_PER_SOURCE:
+    #         break
+    #     # text = url_normalize(url.find("loc").text.strip())
+    #     elif url_string in chan.seen:
+    #         dups += 1
+    #         continue
+    #     else:
+    #         found += 1
+    #
+    #         print(
+    #             magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}"
+    #         )
+    #         chan.queue.append(url_string)
 
-        url_string = url.text
-        try:
-            url_string = url_string.strip()
-        except:
-            url_string = url_string
-        if found >= MAX_ARTICLES_PER_SOURCE:
-            break
-        # text = url_normalize(url.find("loc").text.strip())
-        elif url_string in chan.seen:
-            dups += 1
-            continue
-
-        found += 1
-
-        print(
-            magenta("[ fetch_sitemap ]") + f" :: url #{found}: {url_string}"
-        )
-        chan.queue.append(url_string)
-
-        chan.seen.add(url_string)
+            #chan.seen.add(url_string)
 
     # chan.queue = deque(random.sample(list(chan.queue), len(chan.queue)))
 
@@ -621,7 +629,7 @@ async def main():
 
                 # if not published:
                 dom = parse_html(html)
-                soup = BeautifulSoup(html)
+                soup = BeautifulSoup(html, from_encoding="utf-8")
                 metadata = extract_schemata(dom)
                 article = Article(url, dom, metadata, soup)
                 published = article._datePublished
@@ -699,19 +707,16 @@ async def main():
             print(
                 green(f"[ eventloop ] {len(chan.queue)} urls remaining in the queue.")
             )
-        with open("seen.pkl", "wb") as f:
-            try:
-                pickle.dump(chan.seen, f)
-            except Exception as e:
-                bad = []
-                for url in chan.seen:
-                    print(url, type(url))
-                    if not isinstance(url, str):
-                        bad.append(url)
+            with open("seen.pkl", "wb") as f:
+                try:
+                    pickle.dump(chan.seen, f)
+                except Exception as e:
+                    bad = []
 
-                print(e.__class__.__name__, e)
-                print(f"Bad urls: {bad}")
-                pass
+                    print(e.__class__.__name__, e)
+                    pass
+
+            deduplicate_moderation_table(crawldb)
 
 
 if __name__ == "__main__":
