@@ -716,7 +716,7 @@ async def main():
                     print(e.__class__.__name__, e)
                     pass
 
-            deduplicate_moderation_table(crawldb)
+            # deduplicate_moderation_table(crawldb)
 
 
 if __name__ == "__main__":
