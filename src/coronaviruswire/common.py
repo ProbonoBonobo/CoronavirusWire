@@ -2,11 +2,13 @@ import re
 import dataset
 import psycopg2
 
-# db_config = {"user": "ct",
-#              "password": "admin",
-#              "host": "127.0.0.1",
-#              "port": "5432",
-#              "database": "cvwire"}
+# db_config = {
+#     "user": "kz",
+#     "password": "admin",
+#     "host": "127.0.0.1",
+#     "port": "5432",
+#     "database": "cvwire",
+# }
 db_config = {"user": "postgres",
              "password": "admin",
              "host": "34.83.188.109",
@@ -19,12 +21,15 @@ db = dataset.connect(
 conn = psycopg2.connect(**db_config)
 
 
+#  Note: Change create_table_query below as well
+database_name = "moderationtable_v2"
+
 
 def create_moderation_table():
-    if "moderationtable" in db.tables:
+    if database_name in db.tables:
         return
 
-    create_table_query = """CREATE TABLE moderationtable
+    create_table_query = """CREATE TABLE moderationtable_v2
     (ID          SERIAL NOT NULL,
     ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
 
@@ -54,12 +59,14 @@ def create_moderation_table():
     COUNTRY      TEXT,
     SOURCECOUNTRY TEXT,
     REGION       TEXT,
+    STATE        TEXT,
     CITY         TEXT,
     SOURCELOC    TEXT,
     LONGLAT      POINT,
     SOURCELONGLAT POINT,
     COORDS       POINT[],
     CITIES       TEXT[],
+    STATES       TEXT[],
     REGIONS      TEXT[],
     LABELS       TEXT[],
     ENTITIES     TEXT[],
@@ -68,9 +75,9 @@ def create_moderation_table():
 
     PUBLISHED_AT TIMESTAMP NOT NULL,
     CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
-    CREATED_BY   VARCHAR(255),
+    CREATED_BY   TEXT,
     UPDATED_AT   TIMESTAMP DEFAULT NOW(),
-    UPDATED_BY   VARCHAR(255),
+    UPDATED_BY   TEXT,
 
     NUM_CLICKS   INT DEFAULT 0,
     METADATA     JSON,
@@ -155,9 +162,7 @@ patterns = {
 
 # most sites simply won't respond unless you identify yourself via user-agent string
 default_headers = {
-    "user-agent": "Mozilla/5.0 (X11; Linux x86_64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/79.0.3945.130 Safari/537.36",
+    "user-agent": """Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36""",
     "dnt": "1",
     "cookie": "nyt-a=29482ninwfwe_efw;",
 }

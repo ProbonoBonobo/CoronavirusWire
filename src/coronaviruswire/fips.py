@@ -271,7 +271,7 @@ def kmeans(arr, n=2):
 if __name__ == "__main__":
     import time
     import pandas as pd
-    from src.coronaviruswire.common import db
+    from src.coronaviruswire.common import (db, database_name)
     from src.coronaviruswire.pointAdaptor import (Point, adapt_point, adapt_point_array)
     from psycopg2.extensions import adapt, register_adapter, AsIs
     import random
@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
 
     # CONSTANTS
-    LIMIT_ARTICLES = 50
+    LIMIT_ARTICLES = 100
 
 
     # Initialization
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     countiesJSON = requests.get("https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
     counties = countiesJSON.json()
 
-    crawldb = db["moderationtable"]
+    crawldb = db[database_name]
 
     # this loads the treemap of US States => US Counties => FIPS Codes
     with open("./lib/us_geoindex.json", "r") as f:
@@ -447,15 +447,6 @@ if __name__ == "__main__":
             print("**************************************")
             print(entities)
             print("**************************************")
-            print(labels)
-            print("**************************************")
-            print(regions)
-            print("**************************************")
-            print(lon)
-            print(lat)
-            print("**************************************")
-            print(locations)
-            print("**************************************")
 
             db_specificity = 'city'
             region_override = None
@@ -479,17 +470,21 @@ if __name__ == "__main__":
                         county = address["county"].replace(" County", "")
                     if "country" in address:
                         country = address["country"]
+
                     if state and county:
                         try:
                             fips = fips_index[state][county]
+                            fips_values[fips].append(ent)
                         except:
                             print(f"No fips code for state {state}, county {county}")
-                        fips_values[fips].append(ent)
                     elif state:
                         db_specificity = 'regional'
                         region_override = state
-                        for county, fips_code in fips_index[state].items():
-                            fips_values[fips_code].append(ent)
+                        try:
+                            for county, fips_code in fips_index[state].items():
+                                fips_values[fips_code].append(ent)
+                        except:
+                            print(f"No fips code for state {state}")
 
                     # gather all data into db_list
                     db_item = {
@@ -530,7 +525,7 @@ if __name__ == "__main__":
             print("db_coords")
             print(db_coords)
             db_cities = [item['city'] for item in db_list]
-            db_regions = [item['region'] for item in db_list]
+            db_states = [item['region'] for item in db_list]
             db_labels = [item['label'] for item in db_list]
             db_entities = [item['entity'] for item in db_list]
             db_fips = [item['fips'] for item in db_list]
@@ -545,7 +540,7 @@ if __name__ == "__main__":
                 longlat = db_longlat,
                 coords = db_coords,
                 cities = db_cities,
-                regions = db_regions,
+                states = db_states,
                 labels = db_labels,
                 entities = db_entities,
                 fips = db_fips,
