@@ -73,7 +73,7 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set(row['article_url'] for row in crawldb)
+    seen = set([row['article_url'] for row in crawldb])
 
 
 def flatten_list(alist):
@@ -355,7 +355,8 @@ async def fetch_content(url):
                 print(
                     f"{blue('[ fetch_content ]')} :: Fetched {green(len(res.content))} {green('bytes')} from url: {url}"
                 )
-                chan.seen.add(url)
+                if res.status_code == 200:
+                    chan.seen.add(url)
             except Exception as e:
                 print(
                     blue("[ fetch_content ]")
@@ -364,8 +365,9 @@ async def fetch_content(url):
                     )
                 )
                 return
-
-        chan.output.append((url, res.content))
+        from src.coronaviruswire.common import patterns
+        if re.search(patterns['coronavirus'], res.content.decode(res.encoding)):
+            chan.output.append((url, res.content))
 
     except Exception as e:
         print(
