@@ -2,18 +2,18 @@ import re
 import dataset
 import psycopg2
 
-db_config = {
-    "user": "kz",
-    "password": "admin",
-    "host": "127.0.0.1",
-    "port": "5432",
-    "database": "cvwire",
-}
-# db_config = {"user": "postgres",
-#              "password": "admin",
-#              "host": "34.83.188.109",
-#              "port": "5432",
-#              "database": "postgres"}
+# db_config = {
+#     "user": "kz",
+#     "password": "admin",
+#     "host": "127.0.0.1",
+#     "port": "5432",
+#     "database": "cvwire",
+# }
+db_config = {"user": "postgres",
+             "password": "admin",
+             "host": "34.83.188.109",
+             "port": "5432",
+             "database": "postgres"}
 
 db = dataset.connect(
     f"postgresql://{db_config['user']}:{db_config['password']}@{db_config['host']}:{db_config['port']}/{db_config['database']}"
@@ -39,10 +39,8 @@ def create_moderation_table():
     SUMMARY      TEXT,
     CATEGORY     TEXT[],
 
-
     NER          JSON,
     GEOTAGS      JSON,
-
 
     HAS_NER      BOOLEAN DEFAULT FALSE,
     HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
@@ -57,12 +55,14 @@ def create_moderation_table():
     COUNTRY      TEXT,
     SOURCECOUNTRY TEXT,
     REGION       TEXT,
+    STATE        TEXT,
     CITY         TEXT,
     SOURCELOC    TEXT,
     LONGLAT      POINT,
     SOURCELONGLAT POINT,
     COORDS       POINT[],
     CITIES       TEXT[],
+    STATES       TEXT[],
     REGIONS      TEXT[],
     LABELS       TEXT[],
     ENTITIES     TEXT[],
