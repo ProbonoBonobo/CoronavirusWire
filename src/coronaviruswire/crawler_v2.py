@@ -361,7 +361,7 @@ async def fetch_content(url):
                     )
                 )
                 return
-        if len(re.findall(rb'(covid|virus)', res.content)) >= 3:
+        if len(re.findall(rb'(covid|virus|pandemic)', res.content)) >= 5:
             chan.output.append((url, res.content))
 
     except Exception as e:
