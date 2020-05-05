@@ -535,7 +535,7 @@ if __name__ == "__main__":
                 article_id=row["article_id"],
                 specificity=db_specificity,
                 country='us',
-                region=db_region,
+                state = db_state,
                 city = db_city,
                 longlat = db_longlat,
                 coords = db_coords,
