@@ -361,8 +361,12 @@ async def fetch_content(url):
                     )
                 )
                 return
-        if len(re.findall(rb'(covid|virus|pandemic)', res.content)) >= 5:
+        mentions = re.findall(rb'(covid|virus|pandemic|infect)', res.content, re.IGNORECASE)
+        if len(mentions) >= 5:
+            print(blue("[ fetch_content ]"), green(f":: Queueing response from {url}. It contains {len(mentions)} of coronavirus."))
             chan.output.append((url, res.content))
+        else:
+            print(blue("[ fetch_content ]"), yellow(f":: Sending response from {url} to the dustbin, as it contains only {len(mentions)} mentions of coronavirus."))
 
     except Exception as e:
         print(
@@ -717,6 +721,6 @@ async def main():
 
 
 if __name__ == "__main__":
-    deduplicate_moderation_table(crawldb)
+    # deduplicate_moderation_table(crawldb)
     trio.run(main)
     deduplicate_moderation_table(crawldb)
