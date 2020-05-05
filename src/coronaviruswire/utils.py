@@ -136,8 +136,10 @@ from collections import deque
 
 
 def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
+
     fp = os.path.abspath(fp)
     news = load_csv(fp, delimiter=delimiter)
+
     loaded = {}
     for row in list(news):
         resolved_urls = []
@@ -660,11 +662,12 @@ def parse_schemata(row):
     return {}
 
 
-def deduplicate_content(index, max_count=3):
+def deduplicate_content(index, max_count=3, crawldb=db['moderationtable_v2']):
     """Given a list of article strings, split each article into lines and count the occurrences of each line.
        if a line appears more than 3 times, erase all its occurrences. Join the remaining lines of each article
        before returning."""
     print(f"Deduplicating {len(list(index.keys()))} articles...")
+
     lines = []
     counts = {}
     _formatted = {}
@@ -673,6 +676,7 @@ def deduplicate_content(index, max_count=3):
         _lines = [line.strip() for line in article.split("\n")]
         _formatted[id] = _lines
         lines.extend(_lines)
+
 
     counts = Counter(lines)
     duplicate_lines = len([line for line, count in counts.items() if count > max_count])
@@ -685,14 +689,15 @@ def deduplicate_content(index, max_count=3):
     for id, article in _formatted.items():
         uniques = [line for line in article if counts[line] <= max_count]
         deduplicated = "\n".join(uniques)
+        hash_after = blake(deduplicated)
         output.append({"id": id, "before": index[id], "after": deduplicated})
-        print(
-            f"=================================================== BEFORE ================================================="
-        )
-        print(index[id])
-        print(
-            f"=================================================== AFTER =================================================="
-        )
+        # print(
+        #     f"=================================================== BEFORE ================================================="
+        # )
+        # print(index[id])
+        # print(
+        #     f"=================================================== AFTER =================================================="
+        # )
         print(deduplicated)
 
     return output
@@ -700,12 +705,13 @@ def deduplicate_content(index, max_count=3):
 
 def deduplicate_moderation_table(tab):
     print(f"Indexing article contents...")
+    hashes = {row['article_id']: hash(row['content']) for row in tab if row['content'] == row['raw_content']}
     updates = {
         row["article_id"]: row["raw_content"] for row in tab if row["raw_content"]
     }
     processed = [
         {"article_id": article["id"], "content": article["after"], "raw_content": article['before']}
-        for article in deduplicate_content(updates)
+        for article in deduplicate_content(updates) if article['id'] in hashes and blake(article['after']) != hashes[article['id']]
     ]
 
     for i, article in enumerate(processed):

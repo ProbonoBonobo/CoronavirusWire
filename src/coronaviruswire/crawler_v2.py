@@ -73,7 +73,8 @@ except:
 class chan:
     queue = deque()
     output = deque()
-    seen = set([row['article_url'] for row in crawldb])
+    seen = seen_urls
+
 
 
 def flatten_list(alist):
@@ -117,11 +118,6 @@ class Article:
         self.raw_content = copy(self.content)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
-        # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
-        # longitude = float(news_sources[site]["long"].split("deg")[0])
-        #
-        # # latitude input is wrong, see pointAdaptor for more details
-        # self.sourcelonglat = Point(longitude, latitude)
         if site in news_sources:
             self.sourceloc = news_sources[site]["loc"]
             self.author = news_sources[site]["name"]
@@ -365,8 +361,7 @@ async def fetch_content(url):
                     )
                 )
                 return
-        from src.coronaviruswire.common import patterns
-        if re.search(patterns['coronavirus'], res.content.decode(res.encoding)):
+        if len(re.findall(rb'(covid|virus)', res.content)) >= 3:
             chan.output.append((url, res.content))
 
     except Exception as e:
@@ -683,9 +678,9 @@ async def main():
                         )
                     )
                     continue
-                if not re.search(
-                    r"(covid|virus|hospital|pandemic|corona)", str(row), re.IGNORECASE
-                ):
+                if not len(re.findall(
+                    r"(covid|virus)", f"{row['title']}\n{row['keywords']}\n{row['summary']}\n{row['content']}\n{row['metadata']}", re.IGNORECASE
+                )) >= 3:
                     print(
                         yellow(
                             f"[ parser ] :: No match for coronavirus in article: {url}"
