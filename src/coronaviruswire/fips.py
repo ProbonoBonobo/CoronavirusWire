@@ -267,6 +267,16 @@ def kmeans(arr, n=2):
     labels = kmeans.labels_
     return labels
 
+def mark_as_traversed(crawldb, article_id):
+    new_row = dict(
+        article_id=article_id,
+        fips_processed = True,
+        country='us',
+        updated_at = dt.datetime.utcnow().replace(microsecond=0),
+        updated_by = 'fips',
+        lang = 'en'
+    )
+    crawldb.update(new_row, ['article_id'])
 
 if __name__ == "__main__":
     import time
@@ -334,6 +344,8 @@ if __name__ == "__main__":
     import wikipedia
 
     for row in rows:
+
+        article_id = row["article_id"]
 
         locations = []
 
@@ -434,148 +446,149 @@ if __name__ == "__main__":
         # eyeballing the outputs to make sure that they look reasonable before integrating the `tx_fips` object
         # with the database.
 
-        # database-committing code to be pushed shortly.
-
         mapbox_access_token = "pk.eyJ1IjoibmVvbmNvbnRyYWlscyIsImEiOiJjazhzazZxNmQwaG4xM2xtenB2YmZiaDQ5In0.CJhvMwotvbdJX4FhbyFCxA"
-        if arr:
-            arr = np.array(arr)
-            lat = arr[:, 1]
-            lon = arr[:, 0]
-            regions = model.predict(arr)
-            by_region = defaultdict(list)
-            results[row["article_url"]] = regions
-            for ent, g in zip(labels, regions):
-                print(f"Entity {ent} resolved to group: {g}")
-                by_region[g].append(ent)
-            filtered_lat = []
-            filtered_lon = []
-            fips_values = defaultdict(list)
 
-            print("**************************************")
-            print(entities)
-            print("**************************************")
+        if not arr:
+            # Article has no fips after processing, move on to next one
+            mark_as_traversed(crawldb, article_id)
+            continue
 
-            db_specificity = 'city'
-            region_override = None
-            db_list = []
+        arr = np.array(arr)
+        lat = arr[:, 1]
+        lon = arr[:, 0]
+        regions = model.predict(arr)
+        by_region = defaultdict(list)
+        results[row["article_url"]] = regions
+        for ent, g in zip(labels, regions):
+            print(f"Entity {ent} resolved to group: {g}")
+            by_region[g].append(ent)
+        filtered_lat = []
+        filtered_lon = []
+        fips_values = defaultdict(list)
 
-            for entity, ent, g, lt, lng, address in zip(
-                entities, labels, regions, lat, lon, locations
-            ):
-                if len(by_region[g]) >= 2:
-                    state = None
-                    county = None
-                    country = None
-                    filtered_lat.append(lt)
-                    filtered_lon.append(lng)
-                    fips = None
+        print("**************************************")
+        print(entities)
+        print("**************************************")
 
-                    if "state" in address:
-                        state = address["state"]
+        db_specificity = 'city'
+        region_override = None
+        db_list = []
 
-                    if "county" in address:
-                        county = address["county"].replace(" County", "")
-                    if "country" in address:
-                        country = address["country"]
+        for entity, ent, g, lt, lng, address in zip(
+            entities, labels, regions, lat, lon, locations
+        ):
+            if len(by_region[g]) >= 2:
+                state = None
+                county = None
+                country = None
+                filtered_lat.append(lt)
+                filtered_lon.append(lng)
+                fips = None
 
-                    if state and county:
-                        try:
-                            fips = fips_index[state][county]
-                            fips_values[fips].append(ent)
-                        except:
-                            print(f"No fips code for state {state}, county {county}")
-                    elif state:
-                        db_specificity = 'regional'
-                        region_override = state
-                        try:
-                            for county, fips_code in fips_index[state].items():
-                                fips_values[fips_code].append(ent)
-                        except:
-                            print(f"No fips code for state {state}")
+                if "state" in address:
+                    state = address["state"]
 
-                    # gather all data into db_list
-                    db_item = {
-                        'entity': entity,
-                        'label': ent,
-                        'coord': Point(lng, lt),
-                        'fips': str(fips),
-                        'locref': len(ent),
-                        'city': county,
-                        'region': state
-                    }
+                if "county" in address:
+                    county = address["county"].replace(" County", "")
+                if "country" in address:
+                    country = address["country"]
 
-                    db_list.append(db_item)
+                if state and county:
+                    try:
+                        fips = fips_index[state][county]
+                        fips_values[fips].append(ent)
+                    except:
+                        print(f"No fips code for state {state}, county {county}")
+                elif state:
+                    db_specificity = 'regional'
+                    region_override = state
+                    try:
+                        for county, fips_code in fips_index[state].items():
+                            fips_values[fips_code].append(ent)
+                    except:
+                        print(f"No fips code for state {state}")
 
+                # gather all data into db_list
+                db_item = {
+                    'entity': entity,
+                    'label': ent,
+                    'coord': Point(lng, lt),
+                    'fips': str(fips),
+                    'locref': len(ent),
+                    'city': county,
+                    'region': state
+                }
 
-            # **************************
-            # Database Stuff
-            if not db_list or len(db_list) == 0:
-                continue
-
-            # Sort by most to least entity references
-            db_list.sort(key=lambda obj: obj['locref'], reverse=True)
-            print(f"db_list: {db_list}")
-
-            item0 = db_list[0]
-            num_fips = len(db_list)
-            if num_fips >= 5:
-                db_specificity = 'regional'
-
-            db_state = item0['region']
-            db_city = item0['city']
-            db_longlat = item0['coord']
-
-            db_coords_array = [item['coord'] for item in db_list]
-            db_coords = adapt_point_array(db_coords_array)
-
-            # db_coords = [item['coord'] for item in db_list]
-            print("db_coords")
-            print(db_coords)
-            db_cities = [item['city'] for item in db_list]
-            db_states = [item['region'] for item in db_list]
-            db_labels = [item['label'] for item in db_list]
-            db_entities = [item['entity'] for item in db_list]
-            db_fips = [item['fips'] for item in db_list]
-            db_locrefs = [item['locref'] for item in db_list]
-
-            if not db_fips:
-                db_fips = []
-
-            new_row = dict(
-                article_id=row["article_id"],
-                fips_processed = True,
-                specificity=db_specificity,
-                country='us',
-                state = db_state,
-                city = db_city,
-                longlat = db_longlat,
-                coords = db_coords,
-                cities = db_cities,
-                states = db_states,
-                labels = db_labels,
-                entities = db_entities,
-                fips = db_fips,
-                locrefs = db_locrefs,
-                updated_at = dt.datetime.utcnow().replace(microsecond=0),
-                updated_by = 'fips',
-                lang = 'en'
-            )
-            crawldb.update(new_row, ['article_id'])
+                db_list.append(db_item)
 
 
-            # ********************************************
+        # **************************
+        # Database Stuff
+        if not db_list or len(db_list) == 0:
+            continue
 
-            tx_fips = [
-                {"fips": str(k), "z_value": len(v), "references": ", ".join(v)}
-                for k, v in fips_values.items()
-            ]
-            if not tx_fips:
-                continue
+        # Sort by most to least entity references
+        db_list.sort(key=lambda obj: obj['locref'], reverse=True)
+        print(f"db_list: {db_list}")
 
-            # display_map(tx_fips, counties)
-            # print(json.dumps(geo_results, indent=4))
+        item0 = db_list[0]
+        num_fips = len(db_list)
+        if num_fips >= 5:
+            db_specificity = 'regional'
+
+        db_state = item0['region']
+        db_city = item0['city']
+        db_longlat = item0['coord']
+
+        db_coords_array = [item['coord'] for item in db_list]
+        db_coords = adapt_point_array(db_coords_array)
+
+        # db_coords = [item['coord'] for item in db_list]
+        print("db_coords")
+        print(db_coords)
+        db_cities = [item['city'] for item in db_list]
+        db_states = [item['region'] for item in db_list]
+        db_labels = [item['label'] for item in db_list]
+        db_entities = [item['entity'] for item in db_list]
+        db_fips = [item['fips'] for item in db_list]
+        db_locrefs = [item['locref'] for item in db_list]
+
+        if not db_fips:
+            db_fips = []
+
+        new_row = dict(
+            article_id=article_id,
+            fips_processed = True,
+            specificity=db_specificity,
+            country='us',
+            state = db_state,
+            city = db_city,
+            longlat = db_longlat,
+            coords = db_coords,
+            cities = db_cities,
+            states = db_states,
+            labels = db_labels,
+            entities = db_entities,
+            fips = db_fips,
+            locrefs = db_locrefs,
+            updated_at = dt.datetime.utcnow().replace(microsecond=0),
+            updated_by = 'fips',
+            lang = 'en'
+        )
+        crawldb.update(new_row, ['article_id'])
 
 
+        # ********************************************
+
+        tx_fips = [
+            {"fips": str(k), "z_value": len(v), "references": ", ".join(v)}
+            for k, v in fips_values.items()
+        ]
+        if not tx_fips:
+            continue
+
+        # display_map(tx_fips, counties)
+        # print(json.dumps(geo_results, indent=4))
 
 
 def display_map(tx_fips, counties):
