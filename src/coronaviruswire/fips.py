@@ -310,10 +310,17 @@ if __name__ == "__main__":
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
     rows = [
-        row for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+        row for row in crawldb.find(has_ner=True, fips=None, mod_status='approved', _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
     ]
 
-    print(f"Found {len(rows)} unprocessed articles!")
+    print(f"Found {len(rows)} unprocessed and approved articles!")
+
+    if len(rows) == 0:
+        rows = [
+            row for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+        ]
+
+    print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
 
     results = {}
 
@@ -514,7 +521,7 @@ if __name__ == "__main__":
             if num_fips >= 5:
                 db_specificity = 'regional'
 
-            db_region = item0['region']
+            db_state = item0['region']
             db_city = item0['city']
             db_longlat = item0['coord']
 
@@ -530,6 +537,9 @@ if __name__ == "__main__":
             db_entities = [item['entity'] for item in db_list]
             db_fips = [item['fips'] for item in db_list]
             db_locrefs = [item['locref'] for item in db_list]
+
+            if not db_fips:
+                db_fips = []
 
             new_row = dict(
                 article_id=row["article_id"],
