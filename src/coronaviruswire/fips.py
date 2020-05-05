@@ -310,14 +310,14 @@ if __name__ == "__main__":
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
     rows = [
-        row for row in crawldb.find(has_ner=True, fips=None, mod_status='approved', _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved', _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
     ]
 
     print(f"Found {len(rows)} unprocessed and approved articles!")
 
     if len(rows) == 0:
         rows = [
-            row for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+            row for row in crawldb.find(has_ner=True, fips_processed=False, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
         ]
 
     print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
@@ -543,6 +543,7 @@ if __name__ == "__main__":
 
             new_row = dict(
                 article_id=row["article_id"],
+                fips_processed = True,
                 specificity=db_specificity,
                 country='us',
                 state = db_state,

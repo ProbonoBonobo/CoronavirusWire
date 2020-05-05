@@ -14,7 +14,20 @@ if __name__ == "__main__":
     for x in range(LIMIT_CYCLES):
         updates = []
         print(f"Extracting entities..")
-        for row in [row for row in crawldb.find(ner=None, _limit=LIMIT_ARTICLES)]:
+        rows = [
+            row for row in crawldb.find(ner=None, mod_status='approved', _limit=LIMIT_ARTICLES)
+        ]
+
+        print(f"Found {len(rows)} rows that are approved to extract entities.")
+
+        if len(rows) == 0:
+            rows = [
+                row for row in crawldb.find(ner=None, _limit=LIMIT_ARTICLES)
+            ]
+
+        print(f"All approved articles have extracted entities, Found other {len(rows)} rows to extract entities.")
+
+        for row in rows:
             print(f"Updating {row}")
             content = format_text(
                 "\n".join(
