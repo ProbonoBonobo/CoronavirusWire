@@ -37,6 +37,7 @@ ipython = "*"
 pyproj = "*"
 pandas = "*"
 wikipedia = "*"
+geopy = "*"
 
 [requires]
 python_version = "3.7"
