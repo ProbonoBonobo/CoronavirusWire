@@ -50,7 +50,7 @@ import uuid
 
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("lib/newspapers.tsv")
+news_sources = load_news_sources("lib/newspapers4.csv", delimiter=",")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()

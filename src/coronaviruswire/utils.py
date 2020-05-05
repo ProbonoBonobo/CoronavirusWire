@@ -65,10 +65,11 @@ def parse_html(responses):
 
 def iter_csv(fp="../../lib/newspapers.csv", delimiter="\t"):
     with open(fp, "r") as f:
-        f_csv = csv.DictReader(f, delimiter=delimiter)
-        cols = f_csv.fieldnames
+        cols = f.readline().split(delimiter)
+        f_csv = csv.DictReader(f, fieldnames=cols, delimiter=delimiter)
+
         for row in f_csv:
-            yield dict(row.items())
+            yield dict(row)
 
 
 def load_csv(fp="../../lib/newspapers.tsv", delimiter="\t"):
@@ -100,43 +101,43 @@ def remove_cruft(list_of_articles):
 
 from collections import deque
 
+#
+# def load_news_sources(fp="./lib/newspapers.tsv", delimiter="\t"):
+#     fp = os.path.abspath(fp)
+#     news = load_csv(fp, delimiter=delimiter)
+#     loaded = {}
+#     for row in list(news):
+#         resolved_urls = []
+#         for k, v in list(row.items()):
+#             print(k, v)
+#             if not k:
+#                 print(red(f"Bad row in newspapers.tsv: {row}"))
+#                 continue
+#             if len(resolved_urls) > 10:
+#                 break
+#             if not v:
+#                 continue
+#             elif k.startswith("sitemap_url_template"):
+#                 resolved = datetime.datetime.now().strftime(v)
+#                 resolved_urls.append(resolved)
+#             elif k.startswith("sitemap_url"):
+#                 resolved_urls.append(v)
+#         print("resolved_urls")
+#         print(resolved_urls)
+#         print(row)
+#         url = url_normalize(row["url"]).strip().lower()
+#         parsed = urlparse(url)
+#         row["url"] = url
+#         row["site"] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
+#         row["sitemap_urls"] = resolved_urls
+#         if row["sitemap_urls"]:
+#             loaded[row["site"]] = row
+#     return loaded
 
-def load_news_sources(fp="./lib/newspapers.tsv"):
+
+def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
     fp = os.path.abspath(fp)
-    news = load_csv(fp)
-    loaded = {}
-    for row in list(news):
-        resolved_urls = []
-        for k, v in list(row.items()):
-            print(k, v)
-            if not k:
-                print(red(f"Bad row in newspapers.tsv: {row}"))
-                continue
-            if len(resolved_urls) > 10:
-                break
-            if not v:
-                continue
-            elif k.startswith("sitemap_url_template"):
-                resolved = datetime.datetime.now().strftime(v)
-                resolved_urls.append(resolved)
-            elif k.startswith("sitemap_url"):
-                resolved_urls.append(v)
-        print("resolved_urls")
-        print(resolved_urls)
-        print(row)
-        url = url_normalize(row["url"]).strip().lower()
-        parsed = urlparse(url)
-        row["url"] = url
-        row["site"] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
-        row["sitemap_urls"] = resolved_urls
-        if row["sitemap_urls"]:
-            loaded[row["site"]] = row
-    return loaded
-
-
-def load_news_sources(fp="../../lib/newspapers.tsv"):
-    fp = os.path.abspath(fp)
-    news = load_csv(fp)
+    news = load_csv(fp, delimiter=delimiter)
     loaded = {}
     for row in list(news):
         resolved_urls = []
