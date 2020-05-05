@@ -286,7 +286,7 @@ if __name__ == "__main__":
 
 
     # CONSTANTS
-    LIMIT_ARTICLES = 100
+    LIMIT_ARTICLES = 50
 
 
     # Initialization
