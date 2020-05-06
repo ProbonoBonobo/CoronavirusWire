@@ -315,7 +315,7 @@ async def fetch_sitemap(sitemap_url):
 
     # Change to reverse chronological order, to get the most recent articles
     urls = list(reversed(urls))
-    urls_length = max(len(urls), MAX_ARTICLES_PER_SOURCE)
+    urls_length = min(len(urls), MAX_ARTICLES_PER_SOURCE)
     urls = urls[:urls_length]
 
     if urls_length_before != urls_length:
