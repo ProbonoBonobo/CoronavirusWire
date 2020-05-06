@@ -9,7 +9,7 @@ git clone https://github.com/ProbonoBonobo/CoronavirusWire.git
 cd CoronavirusWire
 pipenv install --skip-lock
 python -m spacy download en_core_web_sm
-pipenv run python src/coronaviruswire/crawler.py
+pipenv run python src/coronaviruswire/crawler_v2.py
 ```
 
 This will launch several sitemap crawlers to populate the queue with URLs. Once that is finished, the crawler requests up to 25 urls simultaneously, accumulates the responses, and does a rudimentary parsing step before writing the results to a file. (This generates a lot of console output!)
@@ -27,3 +27,6 @@ build-essential libssl-dev libffi-dev \
 libxml2-dev libxslt1-dev zlib1g-dev \
 python-pip`
 6) create .env file and add `export PYTHONPATH=":"` to allow for python to import module inside the current project folder
+
+#### Note:
+if psycopg2 fails, try pipenv install psycopg2-binary
