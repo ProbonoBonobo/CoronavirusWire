@@ -39,6 +39,8 @@ pandas = "*"
 wikipedia = "*"
 newspaper3k = "*"
 flatdict = "*"
+psycopg2-binary = "*"
+nltk = "*"
 
 [requires]
 python_version = "3.7"

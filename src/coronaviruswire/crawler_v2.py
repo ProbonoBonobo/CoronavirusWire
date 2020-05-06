@@ -47,7 +47,9 @@ from collections import Counter
 import re
 import termcolor
 import uuid
+import nltk
 
+nltk.download('punkt')
 
 # this is a global variable because we need to reference its contents when building the database entry
 news_sources = load_news_sources("lib/newspapers4.csv", delimiter=",")
@@ -185,14 +187,14 @@ class Article:
                 text = normalize("NFKD", unescape(text))
             except:
                 pass
-            
+
             try:
                 text = text.encode("utf-8").decode("utf-8")
             except:
                 pass
             if text:
                 extracted = text.strip()
-            
+
         for node in self._soup.find_all("p"):
             text = node.text
             if text and text.strip():
@@ -429,7 +431,7 @@ async def main():
             for url, html in chan.output:
                 curr += 1
                 print(cyan(f"[ eventloop ] :: Processing url #{curr}: {url}"))
-                dup_row = crawldb.find_one(article_url=url)
+
                 # chan.seen.add(url)
                 parsed = NewsArticle(url)
                 parsed.download(html)
@@ -636,10 +638,12 @@ async def main():
                 published = article._datePublished
                 modified = article._dateModified
 
+                title = unidecode(parsed.title)
+
                 row = {
                     "raw_content": unidecode(article.content),
                     "content": unidecode(article.content),
-                    "title": unidecode(parsed.title),
+                    "title": title,
                     "summary": unidecode(description),
                     "keywords": keywords,
                     "image_url": parsed.top_image,
@@ -660,6 +664,11 @@ async def main():
                     "city": city,
                     "state": state,
                 }
+
+                dup_row_url = crawldb.find_one(article_url=url)
+                dup_row_title = crawldb.find_one(title=title)
+
+                dup_row = (dup_row_url != None or dup_row_title != None)
                 if dup_row:
                     print(red(f"[ parser ] Url {url} appears to be a duplicate!"))
                     print(
@@ -682,9 +691,13 @@ async def main():
                         )
                     )
                     continue
-                if not len(re.findall(
-                    r"(covid|virus)", f"{row['title']}\n{row['keywords']}\n{row['summary']}\n{row['content']}\n{row['metadata']}", re.IGNORECASE
-                )) >= 3:
+
+                # r"(covid|virus)", f"{row['title']}\n{row['keywords']}\n{row['summary']}\n{row['content']}\n{row['metadata']}", re.IGNORECASE
+                regexResults = re.findall(
+                    r"(covid|virus|pandemic)", f"{row['title']}\n{row['summary']}\n{row['content']}", re.IGNORECASE
+                )
+
+                if not len(regexResults) >= 3:
                     print(
                         yellow(
                             f"[ parser ] :: No match for coronavirus in article: {url}"
@@ -692,14 +705,14 @@ async def main():
                     )
                     continue
 
-                else:
-                    print(json.dumps(row, indent=4, default=str))
-                    print(
-                        green(
-                            f"[ parser ] Finished parsing {url}. {len(processed)} total rows are now in the buffer."
-                        )
+                # Article is good to be added
+                print(json.dumps(row, indent=4, default=str))
+                print(
+                    green(
+                        f"[ parser ] Finished parsing {url}. {len(processed)} total rows are now in the buffer."
                     )
-                    processed.append(row)
+                )
+                processed.append(row)
 
             print(green(f"[ eventloop ] Upserting {len(processed)} rows..."))
             crawldb.upsert_many(processed, ["article_url"])
