@@ -6,4 +6,5 @@ package-lock.json
 v-env/
 __pycache__/
 /Pipfile.lock
+geocache.json
 
