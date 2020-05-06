@@ -52,16 +52,16 @@ import nltk
 nltk.download('punkt')
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("lib/newspapers4.csv", delimiter=",")
+news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers4.csv", delimiter=",")
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
 create_moderation_table()
 
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 200
-MAX_ARTICLES_PER_SOURCE = 50
-MAX_REQUESTS = 4
+MAX_SOURCES = 10
+MAX_ARTICLES_PER_SOURCE = 2
+MAX_REQUESTS = 10
 BUFFER_SIZE = 50
 
 seen_urls = set([row["article_url"] for row in crawldb])
@@ -77,7 +77,7 @@ class chan:
     output = deque()
     seen = seen_urls
 
-
+tmp = []
 
 def flatten_list(alist):
     for item in alist:
@@ -107,6 +107,14 @@ class Article:
         self._soup = soup
         self._dom = dom
         self.schema = schema
+        for s in dom.xpath("//script[contains(@type,'application/ld+json')]"):
+            try:
+
+                self.schema.update(json.loads(unidecode(unescape(s.text))))
+            except Exception as e:
+                print(f"couldn't parse {s.text} :: {e}")
+
+
         self.article_url = url_normalize(url)
         for k, v in self.required_attrs.items():
             if k in schema and schema[k]:
@@ -117,6 +125,7 @@ class Article:
             if isinstance(value, str):
                 pass
             setattr(self, v, value)
+        self.schema = FlatDict(schema)
         self.raw_content = copy(self.content)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
@@ -134,6 +143,7 @@ class Article:
 
         self.article_id = str(uuid.uuid4())
         self.source_id = self.author
+
 
 
 
@@ -161,11 +171,66 @@ class Article:
 
     @property
     def _dateModified(self):
-        return datetime.datetime.now()
+        dt = None
+        if 'dateModified' in self.schema:
+            print(f"[ date ] Got a legit modified date for url {self.article_url}: {self.schema['dateModified']}")
+            dt = self.schema['dateModified']
+        elif any('dateModified' in k for k in self.schema):
+            for k, v in self.schema.items():
+                if 'dateModified' in k:
+                    print(f"[ date ] Found a needle in the haystack on key {k} with value {v} for url {self.article_url}")
+                    dt = v
+                    break
+        else:
+            for k,v in self.schema.items():
+                try:
+                    dt = parse_timestamp(v)
+                    print(f"[ date ] Using {dt} extracted from key {k} ({v}) for {self.article_url}")
+                    break 
+                except:
+                    continue
+        if not dt:
+            dt = datetime.datetime.now()
+        elif isinstance(dt, str):
+            try:
+                dt = parse_timestamp(dt)
+            except Exception as e:
+                print(f"[ date ] Error parsing dateModified timestamp {dt}: {e.__class__.__name__} :: {e}")
+                dt = datetime.datetime.now()
+        assert(isinstance(dt, datetime.datetime), f"Not a date: {dt}")
+        return dt
 
     @property
     def _datePublished(self):
-        return datetime.datetime.now()
+        dt = None
+        if 'datePublished' in self.schema:
+            print(f"[ date ] Got a legit published date for url {self.article_url}: {self.schema['datePublished']}")
+            dt = self.schema['datePublished']
+        elif any('datePublished' in k for k in self.schema):
+            for k, v in self.schema.items():
+                if 'datePublished' in k:
+                    print(f"[ date ] Found a needle in the haystack on key {k} with value {v} for url {self.article_url}")
+                    dt = v
+                    break
+        else:
+            for k,v in self.schema.items():
+                try:
+                    dt = parse_timestamp(v)
+                    print(f"[ date ] Using {dt} extracted from key {k} ({v}) for {self.article_url}")
+                    break 
+                except:
+                    continue
+        if not dt:
+            dt = datetime.datetime.now()
+        elif isinstance(dt, str):
+            try:
+                dt = parse_timestamp(dt)
+            except Exception as e:
+                print(f"[ date ] Error parsing datePublished timestamp {dt}: {e.__class__.__name__} :: {e}")
+                dt = datetime.datetime.now()
+
+        assert(isinstance(dt, datetime.datetime), f"Not a date: {dt}")
+        return dt
 
     @property
     def _headline(self):
@@ -512,6 +577,7 @@ async def main():
                 keywords = set()
                 article_metadata = FlatDict(dict(parsed.meta_data))
                 published = parsed.publish_date
+
                 modified = parsed.publish_date
                 description = parsed.summary
                 print(json.dumps(parsed.meta_data, indent=4, default=str))
@@ -549,12 +615,20 @@ async def main():
                     for k, v in article_metadata.items():
                         if "modified" in k and isinstance(v, str):
                             modified = parse_timestamp(
-                                parsed.meta_data["article"]["modified"]
+                                v
                             )
-                            break
+
                         elif "modified" in k and isinstance(v, datetime.datetime):
                             modified = v
-                            break
+
+                        if "published" in k and isinstance(v, str):
+                            published = parse_timestamp(
+                                v
+                            )
+
+                        elif "published" in k and isinstance(v, datetime.datetime):
+                            published = v
+
                 except:
                     pass
 
@@ -629,14 +703,15 @@ async def main():
                 for k, v in article_metadata.items():
                     if "section" in k.lower():
                         category.append(v)
-
-                # if not published:
                 dom = parse_html(html)
                 soup = BeautifulSoup(html, from_encoding="utf-8")
                 metadata = extract_schemata(dom)
                 article = Article(url, dom, metadata, soup)
-                published = article._datePublished
-                modified = article._dateModified
+                tmp.append(article)
+                if not published:
+
+                    published = article._datePublished
+                    modified = article._dateModified
 
                 title = unidecode(parsed.title)
 
@@ -651,7 +726,7 @@ async def main():
                     "author": ", ".join(parsed.authors),
                     "category": category,
                     "source_id": site,
-                    "metadata": json.loads(json.dumps(dict(article_metadata))),
+                    "metadata": json.loads(json.dumps(article.schema, default=str).encode("utf-8").decode("utf-8")),
                     "sourceloc": sourceloc,
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
@@ -659,8 +734,8 @@ async def main():
                     "has_ner": False,
                     "has_geotags": False,
                     "has_coords": False,
-                    "published_at": published,
-                    "edited_at": modified,
+                    "published_at": article.published_at,
+                    "updated_at": article.updated_at,
                     "city": city,
                     "state": state,
                 }
@@ -736,4 +811,4 @@ async def main():
 if __name__ == "__main__":
     # deduplicate_moderation_table(crawldb)
     trio.run(main)
-    deduplicate_moderation_table(crawldb)
+    # deduplicate_moderation_table(crawldb)
