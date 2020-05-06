@@ -477,7 +477,7 @@ if __name__ == "__main__":
         print(entities)
         print("**************************************")
 
-        db_specificity = 'city'
+        db_specificity = 'local'
         region_override = None
         db_list = []
 
