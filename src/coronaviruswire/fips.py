@@ -353,7 +353,14 @@ if __name__ == "__main__":
         arr = []
         labels = []
         entities = []
-        state = row["sourceloc"].split(", ")[-1]
+
+        sourceloc = row["sourceloc"]
+
+        if sourceloc == None:
+            mark_as_traversed(crawldb, article_id)
+            continue
+
+        state = sourceloc.split(", ")[-1]
         if row["ner"] and len(row["ner"].keys()) <= 30:
 
             for ent, references in row["ner"].items():
