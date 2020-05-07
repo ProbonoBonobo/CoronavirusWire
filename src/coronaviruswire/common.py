@@ -22,73 +22,14 @@ conn = psycopg2.connect(**db_config)
 
 
 #  Note: Change create_table_query below as well
-database_name = "moderationtable_v2"
+database_name = "moderationtable"
 
 
 def create_moderation_table():
     if database_name in db.tables:
         return
 
-    create_table_query = """CREATE TABLE moderationtable_v2
-    (ID          SERIAL NOT NULL,
-    ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
-
-    TITLE        TEXT NOT NULL,
-    AUTHOR       TEXT,
-    SOURCE_ID    VARCHAR(255) NOT NULL,
-    ARTICLE_URL  TEXT,
-    IMAGE_URL    TEXT,
-    RAW_CONTENT  TEXT,
-    CONTENT      TEXT NOT NULL,
-    SUMMARY      TEXT,
-    CATEGORY     TEXT[],
-
-    NER          JSON,
-    GEOTAGS      JSON,
-
-    HAS_NER      BOOLEAN DEFAULT FALSE,
-    HAS_GEOTAGS  BOOLEAN DEFAULT FALSE,
-    HAS_COORDS   BOOLEAN DEFAULT FALSE,
-
-    FIPS_PROCESSED BOOLEAN DEFAULT FALSE,
-
-    POSITIVITY   INT,
-    MOD_STATUS   VARCHAR(255) DEFAULT 'pending',
-    BOOST_FACTOR FLOAT8,
-    FEATURED     BOOL DEFAULT FALSE,
-
-    SPECIFICITY  TEXT,
-    COUNTRY      TEXT,
-    SOURCECOUNTRY TEXT,
-    REGION       TEXT,
-    STATE        TEXT,
-    CITY         TEXT,
-    SOURCELOC    TEXT,
-    LONGLAT      POINT,
-    SOURCELONGLAT POINT,
-    COORDS       POINT[],
-    CITIES       TEXT[],
-    STATES       TEXT[],
-    REGIONS      TEXT[],
-    LABELS       TEXT[],
-    ENTITIES     TEXT[],
-    FIPS         TEXT[],
-    LOCREFS      Int[],
-
-    PUBLISHED_AT TIMESTAMP NOT NULL,
-    CREATED_AT   TIMESTAMP NOT NULL DEFAULT NOW(),
-    CREATED_BY   TEXT,
-    UPDATED_AT   TIMESTAMP DEFAULT NOW(),
-    UPDATED_BY   TEXT,
-
-    NUM_CLICKS   INT DEFAULT 0,
-    METADATA     JSON,
-    LANG         TEXT
-    )
-    """
-    with conn.cursor() as cursor:
-        cursor.execute(create_table_query)
-    conn.commit()
+    ## Create query removed, please use crawler_v2 git branch to create db
 
 
 def create_crawldb_table():
