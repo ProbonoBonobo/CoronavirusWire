@@ -1,6 +1,7 @@
 import re
 import dataset
 import psycopg2
+import os
 
 # db_config = {
 #     "user": "kz",
