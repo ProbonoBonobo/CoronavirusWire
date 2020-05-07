@@ -60,7 +60,7 @@ crawldb = db["moderationtable"]
 MAX_SOURCES = 100
 MAX_ARTICLES_PER_SOURCE = 25
 MAX_REQUESTS = 20
-BUFFER_SIZE = 500
+BUFFER_SIZE = 50
 
 # ======================== DANGER ZONE !!! =================================================
 # changing this variable to True will drop the table. You have been warned!
