@@ -14,6 +14,7 @@ from src.coronaviruswire.utils import (
     deduplicate_content,
     deduplicate_moderation_table,
     deduplicate_table,
+    normalize_state_name
 )
 from pylev import levenshtein
 import pickle
@@ -49,6 +50,7 @@ import termcolor
 from flatdict import FlatDict, FlatterDict
 import uuid
 import nltk
+
 
 nltk.download('punkt')
 
@@ -747,7 +749,7 @@ async def main():
                     "metadata": json.loads(json.dumps(article.schema, default=str).encode("utf-8").decode("utf-8")),
                     "sourceloc": sourceloc,
                     "sourcecity": city,
-                    "sourcestate": state,
+                    "sourcestate": normalize_state_name(state),
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
                     "article_id": article_id,
