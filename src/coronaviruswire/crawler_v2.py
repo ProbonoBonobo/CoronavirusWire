@@ -368,14 +368,24 @@ async def fetch_sitemap(sitemap_url):
         )
         return
     soup = BeautifulSoup(res.content, from_encoding=res.encoding)
-    elements = soup.findAll("loc", limit=MAX_ARTICLES_PER_SOURCE*2)
+    elements = soup.findAll("loc", limit=9999)
     urls = []
     for elem in elements:
         url = elem.text
         if url and url.strip() not in chan.seen:
             urls.append(url.strip())
 
-    print(magenta("[ fetch_sitemap ] "), f":: Extracted {len(urls)} from sitemap: {sitemap_url}")
+    urls_length_before = len(urls)
+    print(magenta("[ fetch_sitemap ] "), f":: Extracted {urls_length_before} from sitemap: {sitemap_url}")
+
+    # Change to reverse chronological order, to get the most recent articles
+    urls = list(reversed(urls))
+    urls_length = min(len(urls), MAX_ARTICLES_PER_SOURCE)
+    urls = urls[:urls_length]
+
+    if urls_length_before != urls_length:
+        print(blue("[ truncate_sitemap ] "), f":: Truncating to {urls_length} urls")
+
     chan.queue.extend(urls)
     # total = len(urls)
     # print(magenta(
