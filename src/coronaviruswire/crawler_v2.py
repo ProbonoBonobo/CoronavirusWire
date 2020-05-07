@@ -53,9 +53,9 @@ import nltk
 nltk.download('punkt')
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers4.csv", delimiter=",")
+news_sources = load_news_sources("./lib/newspapers4.csv", delimiter=",")
 
-crawldb = db["moderationtable_v2"]
+crawldb = db["moderationtable"]
 
 MAX_SOURCES = 100
 MAX_ARTICLES_PER_SOURCE = 25
@@ -194,7 +194,7 @@ class Article:
                 try:
                     dt = parse_timestamp(v)
                     print(f"[ date ] Using {dt} extracted from key {k} ({v}) for {self.article_url}")
-                    break 
+                    break
                 except:
                     continue
         if not dt:
@@ -225,7 +225,7 @@ class Article:
                 try:
                     dt = parse_timestamp(v)
                     print(f"[ date ] Using {dt} extracted from key {k} ({v}) for {self.article_url}")
-                    break 
+                    break
                 except:
                     continue
         if not dt:
@@ -746,6 +746,8 @@ async def main():
                     "source_id": site,
                     "metadata": json.loads(json.dumps(article.schema, default=str).encode("utf-8").decode("utf-8")),
                     "sourceloc": sourceloc,
+                    "sourcecity": city,
+                    "sourcestate": state,
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
                     "article_id": article_id,
@@ -754,8 +756,6 @@ async def main():
                     "has_coords": False,
                     "published_at": article.published_at,
                     "updated_at": article.updated_at,
-                    "city": city,
-                    "state": state,
                 }
 
                 dup_row_url = crawldb.find_one(article_url=url)

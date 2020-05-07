@@ -23,15 +23,15 @@ conn = psycopg2.connect(**db_config)
 
 def create_moderation_table(drop_table=False):
 
-    if "moderationtable_v2" in db.tables:
+    if "moderationtable" in db.tables:
         if drop_table:
-            tab = db['moderationtable_v2']
+            tab = db['moderationtable']
             tab.drop()
         return
 
 
     create_table_query = """CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE TABLE moderationtable_v2
+    CREATE TABLE moderationtable
     (ID          SERIAL NOT NULL,
     ARTICLE_ID   uuid DEFAULT uuid_generate_v4 (),
 
@@ -61,8 +61,11 @@ def create_moderation_table(drop_table=False):
     COUNTRY      TEXT,
     SOURCECOUNTRY TEXT,
     REGION       TEXT,
+    SOURCEREGION TEXT,
     STATE        TEXT,
+    SOURCESTATE  TEXT,
     CITY         TEXT,
+    SOURCECITY   TEXT,
     SOURCELOC    TEXT,
     LONGLAT      POINT,
     SOURCELONGLAT POINT,
