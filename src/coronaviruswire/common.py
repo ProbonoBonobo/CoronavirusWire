@@ -9,9 +9,23 @@ import psycopg2
 #     "port": "5432",
 #     "database": "cvwire",
 # }
+
+# Staging DB
+# db_config = {"user": "postgres",
+#              "password": "admin",
+#              "host": "34.83.188.109",
+#              "port": "5432",
+#              "database": "postgres"}
+
+
+# os.environ.get('MODERATION_PASSWORD')
+# VS.
+# print(os.getenv('MODERATION_PASSWORD'))
+
+# Production DB
 db_config = {"user": "postgres",
-             "password": "admin",
-             "host": "34.83.188.109",
+             "password": os.environ.get('MODERATION_PASSWORD'),
+             "host": "35.188.134.37",
              "port": "5432",
              "database": "postgres"}
 
