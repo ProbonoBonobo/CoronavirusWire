@@ -21,13 +21,19 @@ db = dataset.connect(
 conn = psycopg2.connect(**db_config)
 
 
-def create_moderation_table():
+def create_moderation_table(drop_table=False):
+
     if "moderationtable_v2" in db.tables:
+        if drop_table:
+            tab = db['moderationtable_v2']
+            tab.drop()
         return
 
-    create_table_query = """CREATE TABLE moderationtable_v2
+
+    create_table_query = """CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE TABLE moderationtable_v2
     (ID          SERIAL NOT NULL,
-    ARTICLE_ID   VARCHAR(255) PRIMARY KEY NOT NULL UNIQUE,
+    ARTICLE_ID   uuid DEFAULT uuid_generate_v4 (),
 
     TITLE        TEXT NOT NULL,
     AUTHOR       TEXT,
@@ -77,8 +83,9 @@ def create_moderation_table():
 
     NUM_CLICKS   INT DEFAULT 0,
     METADATA     JSON,
-    LANG         TEXT
-    )
+    LANG         TEXT,
+    PRIMARY KEY (ARTICLE_ID)
+    );
     """
     with conn.cursor() as cursor:
         cursor.execute(create_table_query)

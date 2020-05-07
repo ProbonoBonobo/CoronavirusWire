@@ -46,6 +46,7 @@ from html import unescape
 from collections import Counter
 import re
 import termcolor
+from flatdict import FlatDict, FlatterDict
 import uuid
 import nltk
 
@@ -54,15 +55,22 @@ nltk.download('punkt')
 # this is a global variable because we need to reference its contents when building the database entry
 news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers4.csv", delimiter=",")
 
-# i recommend dropping the moderation table before proceding, there are some small updates to the schema
-create_moderation_table()
-
 crawldb = db["moderationtable_v2"]
 
-MAX_SOURCES = 10
-MAX_ARTICLES_PER_SOURCE = 2
-MAX_REQUESTS = 10
-BUFFER_SIZE = 50
+MAX_SOURCES = 100
+MAX_ARTICLES_PER_SOURCE = 25
+MAX_REQUESTS = 20
+BUFFER_SIZE = 500
+
+# ======================== DANGER ZONE !!! =================================================
+# changing this variable to True will drop the table. You have been warned!
+DROP_TABLE = False
+
+# ==========================================================================================
+
+
+# i recommend dropping the moderation table before proceding, there are some small updates to the schema
+create_moderation_table(drop_table=DROP_TABLE)
 
 seen_urls = set([row["article_url"] for row in crawldb])
 try:
@@ -125,7 +133,7 @@ class Article:
             if isinstance(value, str):
                 pass
             setattr(self, v, value)
-        self.schema = FlatDict(schema)
+        self.schema = FlatterDict(schema)
         self.raw_content = copy(self.content)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
@@ -821,4 +829,4 @@ async def main():
 if __name__ == "__main__":
     # deduplicate_moderation_table(crawldb)
     trio.run(main)
-    # deduplicate_moderation_table(crawldb)
+    deduplicate_moderation_table(crawldb)
