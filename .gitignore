@@ -6,4 +6,6 @@ package-lock.json
 v-env/
 __pycache__/
 /Pipfile.lock
+.env
+seen.pkl
 
