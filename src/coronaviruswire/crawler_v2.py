@@ -464,7 +464,7 @@ async def fetch_content(url):
 
 
 async def main():
-    keep_going = True
+    keep_going = False
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
     _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     queue = random.sample(_l, len(_l))
