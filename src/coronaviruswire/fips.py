@@ -1,6 +1,11 @@
 from collections import Counter
 from geopy.distance import geodesic
-from src.coronaviruswire.utils import search_for_place, search, calculate_bounding_box
+from src.coronaviruswire.utils import (
+    search_for_place,
+    search,
+    calculate_bounding_box,
+    normalize_state_name
+)
 from math import sqrt
 import datetime as dt
 
@@ -268,6 +273,7 @@ def kmeans(arr, n=2):
     return labels
 
 def mark_as_traversed(crawldb, article_id):
+    print(f"Marking unsavable article as fips processed: {article_id}")
     new_row = dict(
         article_id=article_id,
         fips_processed = True,
@@ -477,7 +483,7 @@ if __name__ == "__main__":
         print(entities)
         print("**************************************")
 
-        db_specificity = 'local'
+        db_specificity = "local"
         region_override = None
         db_list = []
 
@@ -532,6 +538,7 @@ if __name__ == "__main__":
         # **************************
         # Database Stuff
         if not db_list or len(db_list) == 0:
+            mark_as_traversed(crawldb, article_id)
             continue
 
         # Sort by most to least entity references
@@ -542,6 +549,12 @@ if __name__ == "__main__":
         num_fips = len(db_list)
         if num_fips >= 5:
             db_specificity = 'regional'
+
+        # Give moderator the override power
+        moderator_specificity = row["specificity"]
+        if moderator_specificity:
+            print(f"Warning: Specificity already set by moderator: {moderator_specificity}")
+            db_specificity = moderator_specificity
 
         db_state = item0['region']
         db_city = item0['city']
@@ -568,7 +581,7 @@ if __name__ == "__main__":
             fips_processed = True,
             specificity=db_specificity,
             country='us',
-            state = db_state,
+            state = normalize_state_name(db_state),
             city = db_city,
             longlat = db_longlat,
             coords = db_coords,
@@ -587,12 +600,12 @@ if __name__ == "__main__":
 
         # ********************************************
 
-        tx_fips = [
-            {"fips": str(k), "z_value": len(v), "references": ", ".join(v)}
-            for k, v in fips_values.items()
-        ]
-        if not tx_fips:
-            continue
+        # tx_fips = [
+        #     {"fips": str(k), "z_value": len(v), "references": ", ".join(v)}
+        #     for k, v in fips_values.items()
+        # ]
+        # if not tx_fips:
+        #     continue
 
         # display_map(tx_fips, counties)
         # print(json.dumps(geo_results, indent=4))

@@ -20,9 +20,24 @@ from collections import Counter
 import spacy
 import termcolor
 from gemeinsprache.utils import blue, red
+import us
 
 nlp = None
 
+
+def normalize_state_name(state):
+
+    stateCodeToNameDict = us.states.mapping('abbr', 'name')
+
+    if len(state) > 3:
+        return state
+
+    state_lowercase = state.upper()
+    full_name = stateCodeToNameDict[state_lowercase]
+    if full_name:
+        return full_name
+    else:
+        return state
 
 def async_fetch(*urls, max_requests=25, headers=default_headers, timeout=60, **kwargs):
     if isinstance(urls, str):
