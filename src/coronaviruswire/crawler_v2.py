@@ -466,7 +466,7 @@ async def fetch_content(url):
 
 
 async def main():
-    keep_going = False
+    keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
     _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     queue = random.sample(_l, len(_l))
@@ -696,6 +696,8 @@ async def main():
                         print(cyan(f"   {i}. {k}"))
 
                     keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
+                    print("Found Keywords:")
+                    print(keywords)
                 # else:
                 #     print(f"===================================================== METADATA ===============================================")
                 #     print(yellow(json.dumps(parsed.meta_data, indent=4, default=str)))
