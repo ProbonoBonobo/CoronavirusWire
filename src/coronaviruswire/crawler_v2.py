@@ -476,6 +476,7 @@ async def main():
     sitemap_urls = set(queue)
     chan.queue = deque(queue)
     iterations = 0
+
     while keep_going:
         iterations += 1
         print(

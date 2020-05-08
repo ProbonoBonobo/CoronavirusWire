@@ -719,7 +719,7 @@ def deduplicate_content(index, max_count=3, crawldb=db['moderationtable_v2']):
 
 
 def deduplicate_moderation_table(tab):
-    print(f"Indexing article contents...")
+    print(f"Deduplicating articles...")
     hashes = {row['article_id']: hash(row['content']) for row in tab if row['content'] == row['raw_content']}
     updates = {
         row["article_id"]: row["raw_content"] for row in tab if row["raw_content"]
@@ -730,7 +730,7 @@ def deduplicate_moderation_table(tab):
     ]
 
     for i, article in enumerate(processed):
-        print(f"======================================================= BEFORE =======================================================\n\n{article['raw_content']}\n\n=================================================================================================================\n\n\n\n==================================================================================== AFTER ===============================================================\n\n {article['content']}\n\n================================================================================================\n\n ")
+        # print(f"======================================================= BEFORE =======================================================\n\n{article['raw_content']}\n\n=================================================================================================================\n\n\n\n==================================================================================== AFTER ===============================================================\n\n {article['content']}\n\n================================================================================================\n\n ")
         print(f"(end of article {i})\n\n\n\n")
     tab.update_many(processed, ["article_id"])
     return processed
