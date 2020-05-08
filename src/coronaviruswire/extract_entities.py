@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
         if len(rows) == 0:
             rows = [
-                row for row in crawldb.find(ner=None, _limit=LIMIT_ARTICLES)
+                row for row in crawldb.find(has_ner=False, _limit=LIMIT_ARTICLES)
             ]
 
         print(f"All approved articles have extracted entities, Found other {len(rows)} rows to extract entities.")

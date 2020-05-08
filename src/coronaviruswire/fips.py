@@ -595,6 +595,10 @@ if __name__ == "__main__":
             updated_by = 'fips',
             lang = 'en'
         )
+
+        print(f"SAVING TO DATABASE {article_id} for ({db_city}, {db_state})[{db_specificity}]")
+        print(f"Article Title: {row['title']}")
+        print(f"Article URL: {row['article_url']}")
         crawldb.update(new_row, ['article_id'])
 
 
