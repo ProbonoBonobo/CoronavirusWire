@@ -19,6 +19,7 @@ from pylev import levenshtein
 import pickle
 from gemeinsprache.utils import red, yellow, green, blue, magenta, cyan
 from src.coronaviruswire.pointAdaptor import Point, adapt_point
+import sys
 from psycopg2.extensions import adapt, register_adapter, AsIs
 from url_normalize import url_normalize
 from src.coronaviruswire.utils import load_csv
@@ -29,6 +30,7 @@ from lxml.html import fromstring as parse_html
 from urllib.parse import urlparse
 from newspaper import Article as NewsArticle
 import random
+from morph import flatten
 import datetime
 import os
 import weakref
@@ -53,20 +55,33 @@ import nltk
 nltk.download('punkt')
 
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("./lib/newspapers4.csv", delimiter=",")
+news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers4.csv", delimiter=",")
+# news_sources = [row for row in news_sources if 'washington' in str(row).lower()]
 
 crawldb = db["moderationtable"]
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 25
+MAX_ARTICLES_PER_SOURCE = 50
 MAX_REQUESTS = 20
-BUFFER_SIZE = 50
+BUFFER_SIZE = 100
+
+
+
+tmp = []
 
 # ======================== DANGER ZONE !!! =================================================
 # changing this variable to True will drop the table. You have been warned!
 DROP_TABLE = False
 
 # ==========================================================================================
+
+if DROP_TABLE:
+    ans = ""
+    while ans not in ("y", "n"):
+        ans = input("You are about to drop the table. Are you sure you want to do that? [y/n]  ").strip()
+    if ans == "n":
+        print(f"Aborting. Please update variable `DROP_TABLE` in file crawler_v2.py.")
+        sys.exit(1)
 
 
 # i recommend dropping the moderation table before proceding, there are some small updates to the schema
@@ -95,6 +110,69 @@ def flatten_list(alist):
         else:
             yield item
 
+def glob_metadata(dom):
+     meta = {'meta': {"attrs": []},
+             'schema': []} 
+     for obj in dom.xpath("//meta"):
+         args = list(obj.attrib.values())
+         if len(args) == 2:
+             k,v = args
+             meta['meta'][k] = v
+         elif len(args) > 2:
+             v, *keys = list(reversed(args))
+             for k in keys:
+                 meta['meta'][k] = v
+         else:
+             meta['meta']['attrs'].extend(args)
+
+     for obj in dom.xpath("//script[contains(@type,'json')]"):
+         try:
+             o = json.loads(obj.text)
+         except json.decoder.JSONDecodeError as e:
+             print(f"Decode error: {e}")
+             print(obj.text)
+             continue
+         meta['schema'].append(o) 
+         if '@type' in o and o['@type'] in ("Article", "NewsArticle"): 
+             meta.update(o) 
+     meta = flatten(meta)
+     needles = defaultdict(set) 
+      
+     for k,v in meta.items(): 
+         if 'published' in k.lower(): 
+             needles['published_at'].add(v)
+         elif 'modified' in k.lower(): 
+             needles['updated_at'].add(v)
+         elif 'title' in k.lower(): 
+             needles['title'].add(v) 
+         elif 'section' in k.lower(): 
+             needles['category'].add(v)
+         elif 'author' in k.lower(): 
+             needles['author'].add(v) 
+         elif 'keyword' in k.lower(): 
+             needles['keywords'].add(v)
+         elif 'tag' in k.lower():
+             needles['keywords'].add(v)
+         elif 'description' in k.lower(): 
+             needles['description'].add(v) 
+         elif 'nlp' in k.lower(): 
+             needles['nlp'].add((k,v))
+         elif isinstance(v, str) and '2020' in v and not needles['published_at']:
+             try:
+                 to_datetime = parse_timestamp(v)
+                 needles['published_at'].add(v)
+                 needles['updated_at'].add(v)
+             except Exception as e:
+                 pass
+
+     for k,v in needles.items():
+         if len(list(v)) >= 1 and k in ('published_at', 'updated_at', 'author', 'title', 'description'):
+             needles[k] = list(v)[0] 
+         else: 
+             needles[k] = list(v)
+
+     meta.update(needles) 
+     return meta 
 
 class Article:
     """Build a 2d database representation from HTTP responses and extracted metadata. If a metadata field
@@ -115,25 +193,31 @@ class Article:
         self._soup = soup
         self._dom = dom
         self.schema = schema
+        objects = []
+        for meta in dom.xpath("//meta"):
+            self.schema['meta'] = {}
+            if meta.attrib and 'itemprop' in meta.attrib and 'content' in meta.attrib:
+                self.schema['meta'][meta.attrib['itemprop']] = meta.attrib['content']
         for s in dom.xpath("//script[contains(@type,'application/ld+json')]"):
             try:
-
-                self.schema.update(json.loads(unidecode(unescape(s.text))))
+                objects.append(json.loads(s.text))
             except Exception as e:
                 print(f"couldn't parse {s.text} :: {e}")
+        objects.append(self.schema)
+        self.schema = {k:v for k,v in FlatterDict(objects).items()}
+        self.schema.update(schema)
 
 
         self.article_url = url_normalize(url)
         for k, v in self.required_attrs.items():
-            if k in schema and schema[k]:
-                value = schema[k]
-            else:
+            # if k in self.schema and self.schema[k]:
+            #     value = self.schema[k]
+            # else:
                 # compute the value from this object's property methods
-                value = getattr(self, f"_{k}")
-            if isinstance(value, str):
-                pass
+            value = getattr(self, f"_{k}")
+
             setattr(self, v, value)
-        self.schema = FlatterDict(schema)
+        print(json.dumps(self.schema, indent=4, default=str))
         self.raw_content = copy(self.content)
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
@@ -157,6 +241,10 @@ class Article:
 
         # del self._dom
         # del self.schema
+        if not isinstance(self.published_at, datetime.datetime):
+            print(red("[ date ] "), red(f" :: NOT A DATE: {self.published_at}") )
+            print(json.dumps(self.schema, indent=4, default=str))
+            print("")
         super().__init__()
 
     @property
@@ -205,7 +293,7 @@ class Article:
             except Exception as e:
                 print(f"[ date ] Error parsing dateModified timestamp {dt}: {e.__class__.__name__} :: {e}")
                 dt = datetime.datetime.now()
-        assert(isinstance(dt, datetime.datetime), f"Not a date: {dt}")
+        assert isinstance(dt, datetime.datetime), f"Not a date: {dt}"
         return dt
 
     @property
@@ -237,7 +325,7 @@ class Article:
                 print(f"[ date ] Error parsing datePublished timestamp {dt}: {e.__class__.__name__} :: {e}")
                 dt = datetime.datetime.now()
 
-        assert(isinstance(dt, datetime.datetime), f"Not a date: {dt}")
+        assert isinstance(dt, datetime.datetime), f"Not a date: {dt}"
         return dt
 
     @property
@@ -466,7 +554,7 @@ async def fetch_content(url):
 async def main():
     keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
-    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
+    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values() if str(row['state']).lower().startswith("ca")]))
     queue = random.sample(_l, len(_l))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
@@ -517,6 +605,15 @@ async def main():
 
                 # chan.seen.add(url)
                 parsed = NewsArticle(url)
+                dom = parse_html(html)
+                glob = glob_metadata(dom)
+                soup = BeautifulSoup(html, from_encoding="utf-8")
+                metadata = extract_schemata(dom)
+                article = Article(url, dom, metadata, soup)
+
+                article_metadata = FlatterDict(parsed.meta_data)
+                article_metadata.update(article.schema)
+
                 parsed.download(html)
                 parsed.parse()
                 parsed.nlp()
@@ -593,7 +690,7 @@ async def main():
                 _tag = None
                 category = []
                 keywords = set()
-                article_metadata = FlatDict(dict(parsed.meta_data))
+
                 published = parsed.publish_date
 
                 modified = parsed.publish_date
@@ -721,10 +818,7 @@ async def main():
                 for k, v in article_metadata.items():
                     if "section" in k.lower():
                         category.append(v)
-                dom = parse_html(html)
-                soup = BeautifulSoup(html, from_encoding="utf-8")
-                metadata = extract_schemata(dom)
-                article = Article(url, dom, metadata, soup)
+
                 tmp.append(article)
                 if not published:
 
@@ -744,7 +838,7 @@ async def main():
                     "author": ", ".join(parsed.authors),
                     "category": category,
                     "source_id": site,
-                    "metadata": json.loads(json.dumps(article.schema, default=str).encode("utf-8").decode("utf-8")),
+                    "metadata": glob,
                     "sourceloc": sourceloc,
                     "sourcecity": city,
                     "sourcestate": state,
@@ -754,9 +848,18 @@ async def main():
                     "has_ner": False,
                     "has_geotags": False,
                     "has_coords": False,
-                    "published_at": article.published_at,
-                    "updated_at": article.updated_at,
+                    # "published_at": glob['published_at'],
+                    # "updated_at": glob['updated_at'],
                 }
+                try:
+                    if glob['published_at']:
+                        row['published_at'] = parse_timestamp(glob['published_at'])
+                    if glob['updated_at']:
+                        row['updated_at'] = parse_timestamp(glob['updated_at'])
+
+                except Exception as e:
+                    row['published_at'] = datetime.datetime(1960,1,1)
+                    row['updated_at'] = datetime.datetime(1960,1,1)
 
                 dup_row_url = crawldb.find_one(article_url=url)
                 dup_row_title = crawldb.find_one(title=title)
@@ -790,7 +893,7 @@ async def main():
                     r"(covid|virus|pandemic)", f"{row['title']}\n{row['summary']}\n{row['content']}", re.IGNORECASE
                 )
 
-                if not len(regexResults) >= 3:
+                if not len(regexResults) >= 1:
                     print(
                         yellow(
                             f"[ parser ] :: No match for coronavirus in article: {url}"
@@ -805,10 +908,12 @@ async def main():
                         f"[ parser ] Finished parsing {url}. {len(processed)} total rows are now in the buffer."
                     )
                 )
-                processed.append(row)
+                if 'published_at' in row:
+                    processed.append(row)
 
             print(green(f"[ eventloop ] Upserting {len(processed)} rows..."))
             crawldb.upsert_many(processed, ["article_url"])
+            # tmp.extend(processed)
             chan.output = []
             keep_going = bool(chan.queue)
             print(

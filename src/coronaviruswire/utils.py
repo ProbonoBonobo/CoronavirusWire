@@ -153,7 +153,18 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
             if not v:
                 continue
             elif k.startswith("sitemap_url_template"):
+                today = int(datetime.datetime.now().strftime("%d"))
+                tomorrow = str(today+1).zfill(2)
+                yesterday = str(today-1).zfill(2)
+                two_days_ago = str(today-2).zfill(2)
+                three_days_ago = str(today-3).zfill(2)
+                four_days_ago = str(today-4).zfill(2)
+                five_days_ago = str(today-5).zfill(2)
+                today_str = datetime.datetime.now().strftime("%d")
+
                 resolved = datetime.datetime.now().strftime(v)
+                for replacement in (tomorrow, yesterday, two_days_ago, three_days_ago, four_days_ago, five_days_ago):
+                    resolved_urls.append(resolved.replace(f"d={today_str}", f"d={replacement}"))
                 resolved_urls.append(resolved)
             elif k.startswith("sitemap_url"):
                 resolved_urls.append(v)
