@@ -14,6 +14,7 @@ from src.coronaviruswire.utils import (
     deduplicate_content,
     deduplicate_moderation_table,
     deduplicate_table,
+    normalize_state_name
 )
 from pylev import levenshtein
 import pickle
@@ -51,6 +52,7 @@ import termcolor
 from flatdict import FlatDict, FlatterDict
 import uuid
 import nltk
+
 
 nltk.download('punkt')
 
@@ -562,6 +564,7 @@ async def main():
     sitemap_urls = set(queue)
     chan.queue = deque(queue)
     iterations = 0
+
     while keep_going:
         iterations += 1
         print(
@@ -790,6 +793,8 @@ async def main():
                         print(cyan(f"   {i}. {k}"))
 
                     keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
+                    print("Found Keywords:")
+                    print(keywords)
                 # else:
                 #     print(f"===================================================== METADATA ===============================================")
                 #     print(yellow(json.dumps(parsed.meta_data, indent=4, default=str)))
@@ -841,7 +846,7 @@ async def main():
                     "metadata": glob,
                     "sourceloc": sourceloc,
                     "sourcecity": city,
-                    "sourcestate": state,
+                    "sourcestate": normalize_state_name(state),
                     # "sourcelonglat": sourcelonglat,
                     "sourcecountry": sourcecountry,
                     "article_id": article_id,

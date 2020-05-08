@@ -20,8 +20,23 @@ from collections import Counter
 import spacy
 import termcolor
 from gemeinsprache.utils import blue, red
+import us
 
 nlp = None
+
+def normalize_state_name(state):
+
+    stateCodeToNameDict = us.states.mapping('abbr', 'name')
+
+    if len(state) > 3:
+        return state
+
+    state_lowercase = state.upper()
+    full_name = stateCodeToNameDict[state_lowercase]
+    if full_name:
+        return full_name
+    else:
+        return state
 
 
 def async_fetch(*urls, max_requests=25, headers=default_headers, timeout=60, **kwargs):
@@ -313,7 +328,7 @@ def initialize_kmedoids_model(path_to_points="./lib/us_metros_scraped_geocoords.
     else:
         coords = path_to_points
     arr = np.array([c for c in coords if c and len(c) == 2])
-    print(f"Points: {len(arr)}")
+    # print(f"Points: {len(arr)}")
     k = 32
     from pyclustering.cluster.kmedoids import kmedoids
 
@@ -715,7 +730,7 @@ def deduplicate_content(index, max_count=3, crawldb=db['moderationtable_v2']):
 
 
 def deduplicate_moderation_table(tab):
-    print(f"Indexing article contents...")
+    print(f"Deduplicating articles...")
     hashes = {row['article_id']: hash(row['content']) for row in tab if row['content'] == row['raw_content']}
     updates = {
         row["article_id"]: row["raw_content"] for row in tab if row["raw_content"]
@@ -726,7 +741,7 @@ def deduplicate_moderation_table(tab):
     ]
 
     for i, article in enumerate(processed):
-        print(f"======================================================= BEFORE =======================================================\n\n{article['raw_content']}\n\n=================================================================================================================\n\n\n\n==================================================================================== AFTER ===============================================================\n\n {article['content']}\n\n================================================================================================\n\n ")
+        # print(f"======================================================= BEFORE =======================================================\n\n{article['raw_content']}\n\n=================================================================================================================\n\n\n\n==================================================================================== AFTER ===============================================================\n\n {article['content']}\n\n================================================================================================\n\n ")
         print(f"(end of article {i})\n\n\n\n")
     tab.update_many(processed, ["article_id"])
     return processed
@@ -748,7 +763,7 @@ def get_geocoords():
     loc = dom.xpath('//*[@id="geoResult"]//dd')
     for node in loc:
         txt = node.text_content()
-        print(txt)
+        # print(txt)
         if "(lat)" in txt:
             match = [float(coord) for coord in re.findall(r"([\d\.\-]{3,})", txt)]
             lat, long = match
@@ -768,12 +783,18 @@ def deduplicate_table(tab):
 
 
 if __name__ == "__main__":
-    import pickle
 
-    with open("../../lib/us_geocoords_unlabeled.pkl", "rb") as f:
-        data = pickle.load(f)
-    print(len(data))
-    model = initialize_kmedoids_model(data)
+    print(normalize_state_name('Ca'))
+
+
+    # import pickle
+    #
+    # with open("../../lib/us_geocoords_unlabeled.pkl", "rb") as f:
+    #     data = pickle.load(f)
+    # print(len(data))
+    # model = initialize_kmedoids_model(data)
+
+
     # crawldb = db["moderationtable"]
     # deduplicate_moderation_table(crawldb)
     # responses = async_fetch("msn.com", "yahoo.com", "nytimes.com",
