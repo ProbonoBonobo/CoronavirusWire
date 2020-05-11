@@ -20,7 +20,7 @@ from collections import Counter
 import spacy
 import termcolor
 from gemeinsprache.utils import blue, red
-import us
+import os
 
 nlp = None
 
@@ -80,7 +80,7 @@ def parse_html(responses):
 
 def iter_csv(fp="../../lib/newspapers.csv", delimiter="\t"):
     with open(fp, "r") as f:
-        cols = f.readline().split(delimiter)
+        cols = f.readline().strip().split(delimiter)
         f_csv = csv.DictReader(f, fieldnames=cols, delimiter=delimiter)
 
         for row in f_csv:
@@ -311,7 +311,7 @@ def cache_queries(func):
     return wrapped
 
 
-def initialize_kmedoids_model(path_to_points="./lib/us_metros_scraped_geocoords.tsv"):
+def initialize_kmedoids_model(path_to_points="../../lib/us_metros_scraped_geocoords.tsv"):
 
     import numpy as np
     from sklearn.cluster import KMeans
@@ -327,7 +327,7 @@ def initialize_kmedoids_model(path_to_points="./lib/us_metros_scraped_geocoords.
                 print(e)
     else:
         coords = path_to_points
-    arr = np.array([c for c in coords if c and len(c) == 2])
+    arr = np.array([c for c in coords if c and len(c) == 2 and 200 > c[0] > -200])
     # print(f"Points: {len(arr)}")
     k = 32
     from pyclustering.cluster.kmedoids import kmedoids

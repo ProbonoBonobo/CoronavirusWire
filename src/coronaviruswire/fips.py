@@ -300,7 +300,7 @@ if __name__ == "__main__":
     crawldb = db["moderationtable"]
 
     # this loads the treemap of US States => US Counties => FIPS Codes
-    with open("./lib/us_geoindex.json", "r") as f:
+    with open("../../lib/us_geoindex.json", "r") as f:
         fips_index = json.load(f)
 
     fips_index = fips_index["fips"]
