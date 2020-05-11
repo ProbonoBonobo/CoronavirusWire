@@ -284,10 +284,20 @@ def mark_as_traversed(crawldb, article_id):
     )
     crawldb.update(new_row, ['article_id'])
 
+def articleTupleToDict(crawldb, aTuple):
+    aDict = {}
+    keys = crawldb.columns
+    for i in range(len(keys)):
+        key = keys[i]
+        aDict[key] = aTuple[i]
+
+    return aDict
+
+
 if __name__ == "__main__":
     import time
     import pandas as pd
-    from src.coronaviruswire.common import (db, database_name)
+    from src.coronaviruswire.common import (db, conn, database_name)
     from src.coronaviruswire.pointAdaptor import (Point, adapt_point, adapt_point_array)
     from psycopg2.extensions import adapt, register_adapter, AsIs
     import random
@@ -299,6 +309,8 @@ if __name__ == "__main__":
     import plotly.graph_objects as go
     import json
     import requests
+    import uuid
+    from src.coronaviruswire.postgresConnection import PostgresConnection
 
 
     # CONSTANTS
@@ -315,6 +327,7 @@ if __name__ == "__main__":
     counties = countiesJSON.json()
 
     crawldb = db[database_name]
+    pconn = PostgresConnection(connection=conn)
 
     # this loads the treemap of US States => US Counties => FIPS Codes
     with open("./lib/us_geoindex.json", "r") as f:
@@ -326,17 +339,44 @@ if __name__ == "__main__":
     # extent that pretty much every word gets classified as an entity. Because the location tagging procedure is
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
-    rows = [
-        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved')
-    ]
+
+    # rows = [
+    #     row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved', order_by='-published_at')
+    # ]
+
+    # statement1 = "SELECT * FROM moderationtable where has_ner=TRUE and fips_processed=False and mod_status='approved' ORDER BY published_at DESC"
+    # rows = list(db.query(statement1))
+
+    rows = []
+
+    query1 = "SELECT * FROM moderationtable where has_ner=%s AND fips_processed=%s AND mod_status=%s ORDER BY published_at DESC"
+    query1_records = [True, False, 'approved']
+
+    query2 = "SELECT * FROM moderationtable where has_ner=%s AND fips_processed=%s ORDER BY published_at DESC"
+    query2_records = [True, False]
+
+    results1 = pconn.executeQuery(query=query1, records=query1_records)
+    if results1:
+        for rowTuple in results1:
+            rowDict = articleTupleToDict(crawldb, rowTuple)
+            rows.append(rowDict)
+
+    # rows = [
+    #     row for row in crawldb.find(id=15034)
+    # ]
 
     print(f"Found {len(rows)} unprocessed and approved articles!")
 
     if len(rows) == 0:
-        # row for row in crawldb.find(has_ner=True, fips_processed=False, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
-        rows = [
-            row for row in crawldb.find(has_ner=True, fips_processed=False)
-        ]
+        # rows = [
+        #     row for row in crawldb.find(has_ner=True, fips_processed=False)
+        # ]
+
+        results2 = pconn.executeQuery(query=query2, records=query2_records)
+        if results2:
+            for rowTuple in results2:
+                rowDict = articleTupleToDict(crawldb, rowTuple)
+                rows.append(rowDict)
 
         print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
 
@@ -376,7 +416,7 @@ if __name__ == "__main__":
         sourceloc = row["sourceloc"]
 
         if sourceloc == None:
-            print("Article has no sourceloc, discarding...")
+            print(f"Article has no sourceloc, discarding... ({article_id})")
             mark_as_traversed(crawldb, article_id)
             continue
 
@@ -384,14 +424,15 @@ if __name__ == "__main__":
 
         ner_items_raw = row["ner"]
         if ner_items_raw == None:
-            print("Article has no NERs, discarding...")
+            print(f"Article has no NERs, discarding... ({article_id})")
             mark_as_traversed(crawldb, article_id)
             continue
 
         len_ner_items_raw = len(ner_items_raw.keys())
-        print(f"The current article has {len_ner_items_raw} unprocessed NERs")
+        print(f"The current article has {len_ner_items_raw} unprocessed NERs. ({article_id}) [{row['title']}]")
+
         if len_ner_items_raw > UPPER_LIMIT_NERS:
-            print(f"Article has way too many ners ({len_ner_items_raw}), discarding...")
+            print(f"Article has way too many ners ({len_ner_items_raw}), discarding... ({article_id})")
             mark_as_traversed(crawldb, article_id)
             continue
 
@@ -405,7 +446,7 @@ if __name__ == "__main__":
 
             ner_items[key] = val
 
-        print(f'Processed ner_items count: {len(ner_items)}')
+        print(f'Processed ner_items count: {len(ner_items)} for article ({article_id})')
 
         if ner_items and len(ner_items.keys()) <= LIMIT_NERS:
             for ent, references in ner_items.items():
@@ -501,6 +542,7 @@ if __name__ == "__main__":
         mapbox_access_token = "pk.eyJ1IjoibmVvbmNvbnRyYWlscyIsImEiOiJjazhzazZxNmQwaG4xM2xtenB2YmZiaDQ5In0.CJhvMwotvbdJX4FhbyFCxA"
 
         if not arr:
+            print(f"Article has no fips after processing, discarding... ({article_id})")
             # Article has no fips after processing, move on to next one
             mark_as_traversed(crawldb, article_id)
             continue
@@ -518,9 +560,8 @@ if __name__ == "__main__":
         filtered_lon = []
         fips_values = defaultdict(list)
 
-        print("**************************************")
+        print("Processed Entities: ")
         print(entities)
-        print("**************************************")
 
         db_specificity = "local"
         region_override = None
@@ -577,6 +618,7 @@ if __name__ == "__main__":
         # **************************
         # Database Stuff
         if not db_list or len(db_list) == 0:
+            print(f"Article has no fips items db_list after processing, discarding... ({article_id})")
             mark_as_traversed(crawldb, article_id)
             continue
 
@@ -635,10 +677,14 @@ if __name__ == "__main__":
             lang = 'en'
         )
 
+        print("*********************************************************")
+        print("*********************************************************")
         print(f"SAVING TO DATABASE {article_id} for ({db_city}, {db_state})[{db_specificity}]")
         print(f"Article Title: {row['title']}")
         print(f"Article URL: {row['article_url']}")
         crawldb.update(new_row, ['article_id'])
+        print("*********************************************************")
+        print("*********************************************************")
 
 
         # ********************************************

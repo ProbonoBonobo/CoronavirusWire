@@ -1,21 +1,20 @@
 import psycopg2
-
+import os
 
 class PostgresConnection:
 
     # Default table name is ModerationTable
-    def __init__(self, tableName="moderationtable"):
+    def __init__(self, connection, tableName="moderationtable"):
         connection = None
         cursor = None
         try:
             connection = psycopg2.connect(
-                user="ct",
-                password="admin",
+                user="postgres",
+                password=os.environ.get('MODERATION_PASSWORD'),
                 port="5432",
-                host="127.0.0.1",
-                database="cvwire",
+                host="35.188.134.37",
+                database="postgres",
             )
-
             cursor = connection.cursor()
         except (Exception, psycopg2.Error) as error:
             print("Postgres Error!", error)
@@ -37,6 +36,14 @@ class PostgresConnection:
             self.connection.commit()
         except (Exception, psycopg2.Error) as error:
             print("Postgres Error!", error)
+
+    def executeQuery(self, query, records=None):
+        try:
+            self.cursor.execute(query, records)
+        except (Exception, psycopg2.Error) as error:
+            print("Postgres Error!", error)
+
+        return self.cursor.fetchall()
 
     def insertNewArticle(
         self,
