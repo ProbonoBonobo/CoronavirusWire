@@ -332,11 +332,22 @@ if __name__ == "__main__":
     print(f"Found {len(rows)} unprocessed and approved articles!")
 
     if len(rows) == 0:
+        # row for row in crawldb.find(has_ner=True, fips_processed=False, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
         rows = [
-            row for row in crawldb.find(has_ner=True, fips_processed=False, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+            row for row in crawldb.find(has_ner=True, fips_processed=False) if len(list(row["ner"].keys())) <= 30
         ]
 
+
+    rows = random.sample(rows, LIMIT_ARTICLES)
+
     print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
+
+    # try_article = rows[0]
+    # print(try_article)
+    # print(f"AAA has_ner: {try_article['has_ner']}")
+    # print(f"AAA has_ner type: {type(try_article['has_ner'])}")
+    # print(f"AAA fips_processed: {try_article['fips_processed']}")
+    # print(f"AAA mod_status: {try_article['mod_status']}")
 
     results = {}
 
