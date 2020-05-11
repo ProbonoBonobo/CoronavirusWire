@@ -304,7 +304,7 @@ if __name__ == "__main__":
     # CONSTANTS
     LIMIT_ARTICLES = 50
     LIMIT_NERS = 30 # Truncate to 30 if more than 30
-    UPPER_LIMIT_NERS = 90 # if greater than 90, don't even truncate, marks as unprocessable
+    UPPER_LIMIT_NERS = 100 # if greater than 90, don't even truncate, marks as unprocessable
 
     # Initialization
     register_adapter(Point, adapt_point)
