@@ -339,7 +339,8 @@ if __name__ == "__main__":
 
         print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
 
-    rows = random.sample(rows, LIMIT_ARTICLES)
+    rows_length = min(len(rows), LIMIT_ARTICLES)
+    rows = random.sample(rows, rows_length)
     rows = sorted(rows, key=lambda row: row['published_at'], reverse=True)
 
     # try_article = rows[0]
