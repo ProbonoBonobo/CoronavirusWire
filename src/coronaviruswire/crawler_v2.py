@@ -793,8 +793,6 @@ async def main():
                         print(cyan(f"   {i}. {k}"))
 
                     keywords = list(keywords.union([unidecode(kw) for kw in alt_tags]))
-                    print("Found Keywords:")
-                    print(keywords)
                 # else:
                 #     print(f"===================================================== METADATA ===============================================")
                 #     print(yellow(json.dumps(parsed.meta_data, indent=4, default=str)))
