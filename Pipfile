@@ -41,6 +41,8 @@ flatdict = "*"
 psycopg2-binary = "*"
 nltk = "*"
 us = "*"
+xmljson = "*"
+gensim = "*"
 
 [requires]
 python_version = "3.7"
