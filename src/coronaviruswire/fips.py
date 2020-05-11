@@ -326,7 +326,7 @@ if __name__ == "__main__":
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
     rows = [
-        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved', _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
+        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved') if len(list(row["ner"].keys())) <= 30
     ]
 
     print(f"Found {len(rows)} unprocessed and approved articles!")
@@ -337,10 +337,10 @@ if __name__ == "__main__":
             row for row in crawldb.find(has_ner=True, fips_processed=False) if len(list(row["ner"].keys())) <= 30
         ]
 
+        print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
 
     rows = random.sample(rows, LIMIT_ARTICLES)
-
-    print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
+    rows = sorted(rows, key=lambda row: row['published_at'], reverse=True)
 
     # try_article = rows[0]
     # print(try_article)
