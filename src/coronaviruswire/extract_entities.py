@@ -1,6 +1,7 @@
 from src.coronaviruswire.common import (db, database_name)
 from src.coronaviruswire.utils import extract_entities, format_text
 import spacy
+import random
 
 LIMIT_CYCLES = 20
 LIMIT_ARTICLES = 100
@@ -15,17 +16,21 @@ if __name__ == "__main__":
         updates = []
         print(f"Extracting entities..")
         rows = [
-            row for row in crawldb.find(ner=None, mod_status='approved', _limit=LIMIT_ARTICLES)
+            row for row in crawldb.find(ner=None, mod_status='approved')
         ]
 
         print(f"Found {len(rows)} rows that are approved to extract entities.")
 
         if len(rows) == 0:
             rows = [
-                row for row in crawldb.find(has_ner=False, _limit=LIMIT_ARTICLES)
+                row for row in crawldb.find(has_ner=False)
             ]
 
-        print(f"All approved articles have extracted entities, Found other {len(rows)} rows to extract entities.")
+            print(f"All approved articles have extracted entities, Found other {len(rows)} rows to extract entities.")
+
+        rows_length = min(len(rows), LIMIT_ARTICLES)
+        rows = random.sample(rows, rows_length)
+        rows = sorted(rows, key=lambda row: row['published_at'], reverse=True)
 
         for row in rows:
             print(f"Updating {row}")

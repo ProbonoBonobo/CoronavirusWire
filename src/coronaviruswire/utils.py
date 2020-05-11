@@ -300,7 +300,9 @@ def initialize_kmedoids_model(
             coords.append(list(deg2dec((row["latitude"], row["longitude"]))))
             labels.append(row["parent"])
         except Exception as e:
-            print(e)
+            # Disabling errors for now, too noisy
+            # print(e)
+            pass
     arr = np.array([c for c in coords if c and len(c) == 2])
     k = 64
     from pyclustering.cluster.kmedoids import kmedoids
@@ -315,7 +317,7 @@ def initialize_kmedoids_model(
     kmedoids_instance.process()
     clusters = kmedoids_instance.get_clusters()
     # Show allocated clusters.
-    print(clusters)
+    # print(clusters)
     return kmedoids_instance
     # Display clusters.
     # visualizer = cluster_visualizer()

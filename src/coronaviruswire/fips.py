@@ -303,7 +303,8 @@ if __name__ == "__main__":
 
     # CONSTANTS
     LIMIT_ARTICLES = 50
-
+    LIMIT_NERS = 30 # Truncate to 30 if more than 30
+    UPPER_LIMIT_NERS = 90 # if greater than 90, don't even truncate, marks as unprocessable
 
     # Initialization
     register_adapter(Point, adapt_point)
@@ -326,7 +327,7 @@ if __name__ == "__main__":
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
     rows = [
-        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved') if len(list(row["ner"].keys())) <= 30
+        row for row in crawldb.find(has_ner=True, fips_processed=False, mod_status='approved')
     ]
 
     print(f"Found {len(rows)} unprocessed and approved articles!")
@@ -334,7 +335,7 @@ if __name__ == "__main__":
     if len(rows) == 0:
         # row for row in crawldb.find(has_ner=True, fips_processed=False, _limit=LIMIT_ARTICLES) if len(list(row["ner"].keys())) <= 30
         rows = [
-            row for row in crawldb.find(has_ner=True, fips_processed=False) if len(list(row["ner"].keys())) <= 30
+            row for row in crawldb.find(has_ner=True, fips_processed=False)
         ]
 
         print(f"Approved articles already approved. Founding {len(rows)} unprocessed articles!")
@@ -375,13 +376,39 @@ if __name__ == "__main__":
         sourceloc = row["sourceloc"]
 
         if sourceloc == None:
+            print("Article has no sourceloc, discarding...")
             mark_as_traversed(crawldb, article_id)
             continue
 
         state = sourceloc.split(", ")[-1]
-        if row["ner"] and len(row["ner"].keys()) <= 30:
 
-            for ent, references in row["ner"].items():
+        ner_items_raw = row["ner"]
+        if ner_items_raw == None:
+            print("Article has no NERs, discarding...")
+            mark_as_traversed(crawldb, article_id)
+            continue
+
+        len_ner_items_raw = len(ner_items_raw.keys())
+        print(f"The current article has {len_ner_items_raw} unprocessed NERs")
+        if len_ner_items_raw > UPPER_LIMIT_NERS:
+            print(f"Article has way too many ners ({len_ner_items_raw}), discarding...")
+            mark_as_traversed(crawldb, article_id)
+            continue
+
+        ner_items = {}
+        ner_i = 0
+        for (key, val) in ner_items_raw.items():
+            ner_i += 1
+            if ner_i > LIMIT_NERS:
+                print(f'Note: Truncating number of NERs to only {LIMIT_NERS}')
+                break
+
+            ner_items[key] = val
+
+        print(f'Processed ner_items count: {len(ner_items)}')
+
+        if ner_items and len(ner_items.keys()) <= LIMIT_NERS:
+            for ent, references in ner_items.items():
                 coords = None
                 wiki_results = None
                 query = f"{ent}, {state}"
