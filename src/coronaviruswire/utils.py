@@ -1,3 +1,4 @@
+import us
 import json
 import csv
 import random
@@ -28,8 +29,10 @@ def normalize_state_name(state):
 
     stateCodeToNameDict = us.states.mapping('abbr', 'name')
 
-    if len(state) > 3:
+    if state and len(state) > 3:
         return state
+    elif not state:
+        return None
 
     state_lowercase = state.upper()
     full_name = stateCodeToNameDict[state_lowercase]

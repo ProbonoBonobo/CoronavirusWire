@@ -3,6 +3,7 @@ from geopy.distance import geodesic
 from src.coronaviruswire.utils import search_for_place, search, calculate_bounding_box
 from math import sqrt
 import datetime as dt
+import us
 
 
 def load_csv():
@@ -309,11 +310,11 @@ if __name__ == "__main__":
     # extent that pretty much every word gets classified as an entity. Because the location tagging procedure is
     # time consuming (and potentially expensive, literal $$$ depending on the API), we will want to filter rows
     # containing an unusually large number of entities as a basic sanity check
-    rows = [
+    rows = list(sorted([
         row
-        for row in crawldb.find(has_ner=True, fips=None, _limit=LIMIT_ARTICLES)
-        if len(list(row["ner"].keys())) <= 30
-    ]
+        for row in crawldb.find(has_ner=True)
+        if not row['fips'] and len(list(row["ner"].keys())) <= 30
+    ], key=lambda x: x['published_at'], reverse=True))
 
     print(f"Found {len(rows)} unprocessed articles!")
 
@@ -337,6 +338,9 @@ if __name__ == "__main__":
         labels = []
         entities = []
         state = row["sourceloc"].split(", ")[-1]
+        print(row['title'])
+        print(row['published_at'])
+        print(row['ner'])
         if row["ner"] and len(row["ner"].keys()) <= 30:
 
             for ent, references in row["ner"].items():
@@ -409,6 +413,7 @@ if __name__ == "__main__":
                         # results. If not, relax the `bounded` constraint, then search again. If still nothing,
                         # move on to the next feature.
                         result = search_for_place(ent, state, bounded=bounded)
+                        time.sleep(1)
                         if result:
                             # yay! we got a match. add this feature to the collection
                             result = result[0]

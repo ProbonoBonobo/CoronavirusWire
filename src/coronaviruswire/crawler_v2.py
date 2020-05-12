@@ -52,6 +52,7 @@ import termcolor
 from flatdict import FlatDict, FlatterDict
 import uuid
 import nltk
+import us
 
 
 nltk.download('punkt')
@@ -556,7 +557,7 @@ async def fetch_content(url):
 async def main():
     keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
-    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values() if str(row['state']).lower().startswith("ca")]))
+    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     queue = random.sample(_l, len(_l))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
@@ -697,7 +698,7 @@ async def main():
                 published = parsed.publish_date
 
                 modified = parsed.publish_date
-                description = parsed.summary
+                description = parse_html(parsed.summary).text_content()
                 print(json.dumps(parsed.meta_data, indent=4, default=str))
                 print(
                     f"====================== END OF METADATA FOR URL {url} =========================="
