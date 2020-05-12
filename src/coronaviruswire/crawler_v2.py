@@ -114,38 +114,52 @@ def flatten_list(alist):
             yield item
 
 def glob_metadata(dom):
-     meta = {'meta': {"attrs": []},
+     haystack = {'meta': {"attrs": []},
              'schema': []} 
      for obj in dom.xpath("//meta"):
          args = list(obj.attrib.values())
          if len(args) == 2:
              k,v = args
-             meta['meta'][k] = v
+             haystack['meta'][k] = v
          elif len(args) > 2:
              v, *keys = list(reversed(args))
              for k in keys:
-                 meta['meta'][k] = v
+                 haystack['meta'][k] = v
          else:
-             meta['meta']['attrs'].extend(args)
+             haystack['meta']['attrs'].extend(args)
 
      for obj in dom.xpath("//script[contains(@type,'json')]"):
          try:
              o = json.loads(obj.text)
+             if o and '@type' in o and o['@type'] in ("Article", "NewsArticle"):
+                 haystack.update(o)
+             elif o:
+                 haystack['schema'].append(o)
+
          except json.decoder.JSONDecodeError as e:
              print(f"Decode error: {e}")
              print(obj.text)
              continue
-         meta['schema'].append(o) 
-         if '@type' in o and o['@type'] in ("Article", "NewsArticle"): 
-             meta.update(o) 
-     meta = flatten(meta)
+         except:
+             continue
+
+      
+     haystack = flatten(haystack)
      needles = defaultdict(set) 
       
-     for k,v in meta.items(): 
-         if 'published' in k.lower(): 
-             needles['published_at'].add(v)
-         elif 'modified' in k.lower(): 
-             needles['updated_at'].add(v)
+     for k,v in haystack.items(): 
+         if any(common_upload_date_prefix in k.lower() for common_upload_date_prefix in ("uploaddate", "publi")):
+             try:
+                 parse_timestamp(v)
+                 needles['published_at'].add(v)
+             except:
+                 continue
+         elif 'modified' in k.lower():
+             try:
+                 parse_timestamp(v)
+                 needles['updated_at'].add(v)
+             except:
+                 continue
          elif 'title' in k.lower(): 
              needles['title'].add(v) 
          elif 'section' in k.lower(): 
@@ -174,8 +188,8 @@ def glob_metadata(dom):
          else: 
              needles[k] = list(v)
 
-     meta.update(needles) 
-     return meta 
+     haystack.update(needles) 
+     return haystack 
 
 class Article:
     """Build a 2d database representation from HTTP responses and extracted metadata. If a metadata field
@@ -698,7 +712,8 @@ async def main():
                 published = parsed.publish_date
 
                 modified = parsed.publish_date
-                description = parse_html(parsed.summary).text_content()
+
+                description = unidecode((parse_html(parsed.summary).text_content() if parsed.summary else "").encode("utf-8").decode("utf-8").encode("unicode-escape").decode("utf-8"))
                 print(json.dumps(parsed.meta_data, indent=4, default=str))
                 print(
                     f"====================== END OF METADATA FOR URL {url} =========================="
@@ -835,7 +850,7 @@ async def main():
                     "raw_content": unidecode(article.content),
                     "content": unidecode(article.content),
                     "title": title,
-                    "summary": unidecode(description),
+                    "summary": description,
                     "keywords": keywords,
                     "image_url": parsed.top_image,
                     "article_url": url,
