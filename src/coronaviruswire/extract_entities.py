@@ -25,7 +25,7 @@ if __name__ == "__main__":
                 ]
             )
         )
-        ents = [ent.strip() for ent in extract_entities_with_allennlp(content)]
+        ents = [ent.strip().title() for ent in extract_entities_with_allennlp(content)]
         unique_ents = set(ents)
         counts = {}
         for ent in ents:
