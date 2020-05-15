@@ -168,9 +168,9 @@ def glob_metadata(dom):
          elif 'author' in k.lower(): 
              needles['author'].add(v) 
          elif 'keyword' in k.lower(): 
-             needles['keywords'].add(v)
+             needles['keywords'].update([kw.strip() for kw in v.split(",")])
          elif 'tag' in k.lower():
-             needles['keywords'].add(v)
+             needles['keywords'].update([kw.strip() for kw in v.split(",")])
          elif 'description' in k.lower(): 
              needles['description'].add(v) 
          elif 'nlp' in k.lower(): 
