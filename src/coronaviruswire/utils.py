@@ -22,8 +22,11 @@ import spacy
 import termcolor
 from gemeinsprache.utils import blue, red
 import os
+from gemeinsprache.utils import blue, green
+from allennlp.predictors import Predictor
 
 nlp = None
+allennlp_model = None
 
 def normalize_state_name(state):
 
@@ -170,7 +173,7 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
                 break
             if not v:
                 continue
-            elif k.startswith("sitemap_url_template"):
+            elif k.startswith("sitemap_url"):
                 today = int(datetime.datetime.now().strftime("%d"))
                 tomorrow = str(today+1).zfill(2)
                 yesterday = str(today-1).zfill(2)
@@ -181,11 +184,9 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
                 today_str = datetime.datetime.now().strftime("%d")
 
                 resolved = datetime.datetime.now().strftime(v)
-                for replacement in (tomorrow, yesterday, two_days_ago, three_days_ago, four_days_ago, five_days_ago):
+                for replacement in {tomorrow, yesterday, two_days_ago, three_days_ago, four_days_ago, five_days_ago}:
                     resolved_urls.append(resolved.replace(f"d={today_str}", f"d={replacement}"))
-                resolved_urls.append(resolved)
-            elif k.startswith("sitemap_url"):
-                resolved_urls.append(v)
+
         print("resolved_urls")
         print(resolved_urls)
         print(row)
@@ -504,6 +505,31 @@ def flatten_list(alist):
                 yield subitem
         else:
             yield item
+
+def extract_entities_with_allennlp(s):
+    model_url = "https://s3-us-west-2.amazonaws.com/allennlp/models/ner-model-2018.12.18.tar.gz"
+
+    global allennlp_model
+    if not allennlp_model:
+        print(f"Loading AllenNLP NER model...")
+        allennlp_model = Predictor.from_path(model_url)
+        print(f"Load complete.")
+    results = allennlp_model.predict(sentence=s)
+    ents = []
+    curr = []
+    for word, tag in zip(results['words'], results['tags']):
+        if not "LOC" in tag:
+            continue
+        curr.append(word)
+        if tag[0] in "LU":
+            ents.append(" ".join(curr))
+            curr = []
+    print("======================================================================================================")
+    print(green(s))
+    print("======================================================================================================")
+    print(blue("Extracted entities:"))
+    print(blue(ents))
+    return ents
 
 
 def extract_entities(s):

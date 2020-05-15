@@ -1,11 +1,9 @@
 from src.coronaviruswire.common import db
-from src.coronaviruswire.utils import extract_entities, format_text
+from src.coronaviruswire.utils import extract_entities_with_allennlp, format_text
 import spacy
 
 LIMIT_ARTICLES = 100
 
-
-nlp = spacy.load("en_core_web_sm")
 crawldb = db["moderationtable"]
 
 if __name__ == "__main__":
@@ -27,7 +25,7 @@ if __name__ == "__main__":
                 ]
             )
         )
-        ents = [ent.strip() for ent in extract_entities(content)]
+        ents = [ent.strip() for ent in extract_entities_with_allennlp(content)]
         unique_ents = set(ents)
         counts = {}
         for ent in ents:
