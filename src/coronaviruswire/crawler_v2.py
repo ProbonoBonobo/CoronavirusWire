@@ -239,12 +239,12 @@ class Article:
         site = re.sub(r"(https?://|www\.)", "", url_normalize(urlparse(url).netloc))
         self.author = site
         if site in news_sources:
-            self.sourceloc = news_sources[site]["loc"]
+            self.sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
             self.author = news_sources[site]["name"]
         else:
             for k, v in news_sources.items():
                 if site in k or k in site:
-                    self.sourceloc = v["loc"]
+                    self.sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
                     self.author = v["name"]
                     break
         self.sourcecountry = "us"
@@ -643,7 +643,7 @@ async def main():
                 )
                 sourceloc = None
                 if site in news_sources:
-                    sourceloc = news_sources[site]["loc"]
+                    sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
                     author = news_sources[site]["name"]
                     try:
                         city, state = sourceloc.split(", ")
@@ -671,7 +671,7 @@ async def main():
                                     f"[ parser ] :: Success! Key {k} appears to match site {site}. I will add that as an alias for {k} to expedite parsing those URLs in the future."
                                 )
                             )
-                            sourceloc = v["loc"]
+                            sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
                             author = v["name"]
                             news_sources[site] = v
                             ok = True
@@ -692,7 +692,7 @@ async def main():
                         )
                         k = ranked[0][1]
                         v = news_sources[k]
-                        sourceloc = v["loc"]
+                        sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
                         author = v["name"]
                         news_sources[site] = v
                 # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
@@ -845,17 +845,24 @@ async def main():
                     modified = article._dateModified
 
                 title = unidecode(parsed.title)
+                _keywords = set()
+                _category = set()
+                for kw in keywords:
+                    _keywords.update([_kw.strip() for _kw in kw.split(",")])
+                for cat in category:
+                    _category.update([_cat.strip() for _cat in cat.split(",")])
+
 
                 row = {
                     "raw_content": unidecode(article.content),
                     "content": unidecode(article.content),
                     "title": title,
                     "summary": description,
-                    "keywords": keywords,
+                    "keywords": _keywords,
                     "image_url": parsed.top_image,
                     "article_url": url,
                     "author": ", ".join(parsed.authors),
-                    "category": category,
+                    "category": _category,
                     "source_id": site,
                     "metadata": glob,
                     "sourceloc": sourceloc,
