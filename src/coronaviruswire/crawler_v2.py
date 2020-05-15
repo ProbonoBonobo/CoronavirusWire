@@ -53,12 +53,13 @@ from flatdict import FlatDict, FlatterDict
 import uuid
 import nltk
 import us
+import os
 
 
 nltk.download('punkt')
-
+path_to_news = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "lib/newspapers4.csv")
 # this is a global variable because we need to reference its contents when building the database entry
-news_sources = load_news_sources("/home/kz/projects/coronaviruswire/lib/newspapers4.csv", delimiter=",")
+news_sources = load_news_sources(path_to_news, delimiter=",")
 # news_sources = [row for row in news_sources if 'washington' in str(row).lower()]
 
 crawldb = db["moderationtable"]
