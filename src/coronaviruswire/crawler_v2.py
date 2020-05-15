@@ -129,10 +129,10 @@ def glob_metadata(dom):
          else:
              haystack['meta']['attrs'].extend(args)
 
-     for obj in dom.xpath("//script[contains(@type,'json')]"):
+     for obj in dom.xpath("//script"):
          try:
              o = json.loads(obj.text)
-             if o and '@type' in o and o['@type'] in ("Article", "NewsArticle"):
+             if o and '@type' in o and o['@type'] in ("Article", "NewsArticle", "VideoObject"):
                  haystack.update(o)
              elif o:
                  haystack['schema'].append(o)
@@ -378,6 +378,11 @@ class Article:
             text = node.text
             if text and text.strip():
                 body.append(text.strip())
+        # if len(body)<=10:
+        #     for node in self._soup.find_all("div"):
+        #         text = node.text
+        #         if text and text.strip():
+        #             body.append(text.strip())
 
         fallback = " \n ".join(body)
         selected = list(sorted([extracted, fallback], key=len))[-1]
