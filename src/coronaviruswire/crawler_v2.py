@@ -693,7 +693,7 @@ async def main():
                         )
                         k = ranked[0][1]
                         v = news_sources[k]
-                        sourceloc = ', '.join([news_sources[site]["city"], news_sources[site]['state']])
+                        sourceloc = ', '.join([v["city"], v['state']])
                         author = v["name"]
                         news_sources[site] = v
                 # latitude = -1 * float(news_sources[site]["lat"].split("deg")[0])
