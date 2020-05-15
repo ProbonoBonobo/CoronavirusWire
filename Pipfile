@@ -43,6 +43,8 @@ nltk = "*"
 us = "*"
 xmljson = "*"
 gensim = "*"
+morph = "*"
+allennlp = "*"
 
 [requires]
 python_version = "3.7"
