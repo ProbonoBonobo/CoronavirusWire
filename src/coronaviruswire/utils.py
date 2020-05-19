@@ -5,6 +5,11 @@ import random
 import os
 from hashlib import blake2b
 from concurrent import futures
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse, urljoin
+import datetime
+from url_normalize import url_normalize
 from src.coronaviruswire.common import default_headers
 import trio
 import cssselect
@@ -17,12 +22,13 @@ from url_normalize import url_normalize
 import lxml
 import re
 from src.coronaviruswire.common import db
+# from src.coronaviruswire.async_utils import fetch_all
 from collections import Counter
 import spacy
 import termcolor
 from gemeinsprache.utils import blue, red
 import os
-from gemeinsprache.utils import blue, green
+from gemeinsprache.utils import blue, green, cyan, yellow, magenta
 from allennlp.predictors import Predictor
 
 nlp = None
@@ -45,7 +51,7 @@ def normalize_state_name(state):
         return state
 
 
-def async_fetch(*urls, max_requests=25, headers=default_headers, timeout=60, **kwargs):
+def async_fetch(urls, max_requests=25, headers=default_headers, timeout=60, **kwargs):
     if isinstance(urls, str):
         urls = [urls]
     urls = [url_normalize(url) for url in urls]
@@ -174,18 +180,8 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
             if not v:
                 continue
             elif k.startswith("sitemap_url"):
-                today = int(datetime.datetime.now().strftime("%d"))
-                tomorrow = str(today+1).zfill(2)
-                yesterday = str(today-1).zfill(2)
-                two_days_ago = str(today-2).zfill(2)
-                three_days_ago = str(today-3).zfill(2)
-                four_days_ago = str(today-4).zfill(2)
-                five_days_ago = str(today-5).zfill(2)
-                today_str = datetime.datetime.now().strftime("%d")
-
-                resolved = datetime.datetime.now().strftime(v)
-                for replacement in {tomorrow, yesterday, two_days_ago, three_days_ago, four_days_ago, five_days_ago}:
-                    resolved_urls.append(resolved.replace(f"d={today_str}", f"d={replacement}"))
+                # resolved = datetime.datetime.now().strftime(v)
+                resolved_urls.append(v)
 
         print("resolved_urls")
         print(resolved_urls)
@@ -194,7 +190,10 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
         parsed = urlparse(url)
         row["url"] = url
         row["site"] = re.sub(r"(https?://|www\.)", "", url_normalize(parsed.netloc))
-        row["sitemap_urls"] = resolved_urls
+        row["sitemap_urls"] = list(set(resolved_urls))
+        row['is_sitemap'] = True
+        row['is_content'] = False
+
         if row["sitemap_urls"]:
             loaded[row["site"]] = row
     return loaded
@@ -221,6 +220,7 @@ def format_text(txt):
         return no_html_tags
     else:
         return txt
+
 
 
 def deg2dec(coord):
@@ -809,6 +809,119 @@ def deduplicate_table(tab):
     processed = deduplicate_content(updates)
 
     return processed
+
+def extract_sitemap_paths(path_to_sitemaps, delimiter=","):
+     news_sources = load_news_sources(path_to_sitemaps, delimiter) 
+     paths = Counter() 
+     for v in news_sources.values(): 
+         urls = v['sitemap_urls'] 
+         for url in urls: 
+             parsed = urlparse(url) 
+             path = re.sub(r"^.+?\.(com|net|org|edu)/", "/", url) 
+             resolved_path = datetime.datetime.now().strftime(path) 
+             paths[resolved_path] += 1 
+     return list(paths.keys()) 
+
+def parse_robots(url):
+     def validate_sitemap_http_response(maybe_url, res):         
+         if res.status_code == 200: 
+             soup = BeautifulSoup(res.content, 'xml') 
+             if soup.find_all("url"): 
+                 root = soup.find("url") 
+                  
+                 promising_candidates.add(maybe_url) 
+                 globals().update(locals()) 
+     if not re.findall(r"\.(com|org|net|edu)/", url): 
+         raise ValueError(f"Invalid URL: {url}. Expected a fully-qualified hostname followed by trailing slash (e.g., 'https://www.google.com/').") 
+     robots_url = url + "robots.txt" 
+     candidate_urls = set() 
+     promising_candidates = set() 
+      
+     common_paths = extract_sitemap_paths("lib/newspapers4.csv") 
+     potential_sitemap_urls = [urljoin(url, path) for path in common_paths] 
+     res = requests.get(robots_url) 
+     raw = res.text 
+     patt = re.compile(r"^Sitemap:\s*(\S+)", re.MULTILINE) 
+      
+     for match in re.findall(patt, raw): 
+         found_sitemap_url = urljoin(url, match) 
+         candidate_urls.add(found_sitemap_url) 
+         if any(path in found_sitemap_url for path in common_paths): 
+             promising_candidates.add(found_sitemap_url) 
+     for maybe_url, res in fetch_all(potential_sitemap_urls, 100).items(): 
+         validate_sitemap_http_response(maybe_url, res) 
+         globals().update(locals()) 
+     return promising_candidates  
+
+
+
+def extract_xml_attributes(content, soup=None):
+     paths = set() 
+     tags = set()
+     if not isinstance(soup, BeautifulSoup):
+         soup = BeautifulSoup(content)
+
+     for match in re.findall(r"\<\/?([^\>\?\!]+)\>", content):
+         tags.add(match.split(" ")[0]) 
+
+     print(tags)
+     for tag in tags: 
+         for node in soup.find_all(tag): 
+             path = [tag] 
+             for n in node.parentGenerator(): 
+                 if n and n.name: 
+                     path.append(n.name) 
+             path = tuple(reversed(path)) 
+             if path not in paths: 
+                     print(path) 
+             paths.add(path) 
+     while True: 
+         roots = list(set([p[0] for p in paths])) 
+         if roots and len(roots) == 1: 
+             paths = set([p[1:] for p in paths if p and len(p) >= 2]) 
+         else: 
+             break 
+     paths = [' '.join(p) for p in paths]
+     tags = list(tags)
+     indexed = {path: [node.text for node in soup.select(path) if node and node.text] for path in paths}
+     return Munch({"paths": paths, "names": tags, "index": indexed})
+
+from copy import copy
+import chardet
+
+def format_text(text):
+     if isinstance(text, datetime.datetime):
+         return text.strftime("%x")
+     if isinstance(text, list):
+         return [format_text(t) for t in text]
+     elif text is None:
+         return None
+
+     before = copy(text) 
+     if isinstance(text, str):
+         text = unidecode(text) 
+         text = text.replace("\xe2", "") 
+         enc = chardet.detect(text.encode())['encoding'] or "utf-8" 
+         as_utf8 = text.encode("utf-8").decode(enc).encode("utf-8") 
+     else:
+         try:
+             text = unidecode(text)
+             as_utf8 = text.replace(b"\xe2", b"")
+         except:
+             as_utf8 = bytes(text)
+          
+     if not as_utf8: 
+         return "" 
+     html_markup_removed = fromstring(re.sub(b'&nbsp;', b' ', as_utf8)).text_content() 
+     nbsp_removed = re.sub('(\xa0|\t|\r)', ' ', html_markup_removed) 
+     normalized = re.sub("(\s?\n[\n\s]+)", "\n", nbsp_removed) 
+     after = fromstring(normalized).text_content()
+     return unidecode(after)
+
+      
+  
+  
+              
 
 
 if __name__ == "__main__":

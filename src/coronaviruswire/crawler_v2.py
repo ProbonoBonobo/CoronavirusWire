@@ -64,10 +64,10 @@ news_sources = load_news_sources(path_to_news, delimiter=",")
 
 crawldb = db["moderationtable"]
 
-MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 50
+MAX_SOURCES = 10
+MAX_ARTICLES_PER_SOURCE = 2
 MAX_REQUESTS = 20
-BUFFER_SIZE = 100
+BUFFER_SIZE = 10
 
 
 
@@ -131,16 +131,20 @@ def glob_metadata(dom):
 
      for obj in dom.xpath("//script"):
          try:
-             o = json.loads(obj.text)
-             if o and '@type' in o and o['@type'] in ("Article", "NewsArticle", "VideoObject"):
-                 haystack.update(o)
-             elif o:
-                 haystack['schema'].append(o)
+             txt = obj.text
+             for o in re.findall(r"(\{.+\})", txt, re.DOTALL|re.MULTILINE):
 
-         except json.decoder.JSONDecodeError as e:
-             print(f"Decode error: {e}")
-             print(obj.text)
-             continue
+                 try:
+                     o = json.loads(obj.text)
+                     if o and '@type' in o and o['@type'] in ("Article", "NewsArticle", "VideoObject"):
+                         haystack.update(o)
+                     elif o:
+                         haystack['schema'].append(o)
+
+                 except json.decoder.JSONDecodeError as e:
+                     print(f"Decode error: {e}")
+                     print(obj.text)
+                     continue
          except:
              continue
 
@@ -577,7 +581,7 @@ async def fetch_content(url):
 async def main():
     keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
-    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values() if row['state'] in ("Washington", "California")]))
+    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values() if row['sourcestate'] in ("Washington", "California")]))
     queue = random.sample(_l, len(_l))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
