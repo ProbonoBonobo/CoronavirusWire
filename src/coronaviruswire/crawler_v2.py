@@ -66,7 +66,7 @@ crawldb = db["moderationtable"]
 
 MAX_SOURCES = 100
 MAX_ARTICLES_PER_SOURCE = 20
-MAX_REQUESTS = 5
+MAX_REQUESTS = 50
 BUFFER_SIZE = 100
 
 
@@ -171,9 +171,9 @@ def glob_metadata(dom):
              needles['category'].add(v)
          elif 'author' in k.lower(): 
              needles['author'].add(v) 
-         elif 'keyword' in k.lower(): 
+         elif 'keyword' in k.lower() and v and isinstance(v, str):
              needles['keywords'].update([kw.strip() for kw in v.split(",")])
-         elif 'tag' in k.lower():
+         elif 'tag' in k.lower() and v and isinstance(v, str):
              needles['keywords'].update([kw.strip() for kw in v.split(",")])
          elif 'description' in k.lower(): 
              needles['description'].add(v) 
@@ -723,7 +723,7 @@ async def main():
 
                 modified = parsed.publish_date
 
-                description = unidecode((parse_html(parsed.summary).text_content() if parsed.summary else "").encode("utf-8").decode("utf-8").encode("unicode-escape").decode("utf-8"))
+                description = format_text(parsed.summary)
                 print(json.dumps(parsed.meta_data, indent=4, default=str))
                 print(
                     f"====================== END OF METADATA FOR URL {url} =========================="
@@ -731,7 +731,7 @@ async def main():
                 try:
                     for k, v in article_metadata.items():
                         if "description" in k:
-                            description = unidecode(unescape(v))
+                            description = format_text(v)
                             print(
                                 green(
                                     f"[ parser ] Found metadescription for article {url}:"
@@ -858,9 +858,9 @@ async def main():
                 _keywords = set()
                 _category = set()
                 for kw in keywords:
-                    _keywords.update([_kw.strip() for _kw in kw.split(",")])
+                    _keywords.update([format_text(_kw.strip()) for _kw in kw.split(",")])
                 for cat in category:
-                    _category.update([_cat.strip() for _cat in cat.split(",")])
+                    _category.update([format_text(_cat.strip()) for _cat in cat.split(",")])
 
 
                 row = {
