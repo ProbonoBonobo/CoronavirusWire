@@ -131,7 +131,7 @@ def glob_metadata(dom):
 
      for obj in dom.xpath("//script"):
          try:
-             txt = obj.text
+             txt = format_text(obj.text)
              for o in re.findall(r"(\{.+\})", txt, re.DOTALL|re.MULTILINE):
 
                  try:
@@ -717,7 +717,7 @@ async def main():
                 _section = None
                 _tag = None
                 category = []
-                keywords = set()
+
 
                 published = parsed.publish_date
 
@@ -861,7 +861,7 @@ async def main():
                     _keywords.update([format_text(_kw.strip()) for _kw in kw.split(",")])
                 for cat in category:
                     _category.update([format_text(_cat.strip()) for _cat in cat.split(",")])
-
+                _keywords.update(glob['keywords'])
 
                 row = {
                     "raw_content": unidecode(article.content),
