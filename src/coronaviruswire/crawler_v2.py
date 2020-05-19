@@ -65,7 +65,7 @@ news_sources = load_news_sources(path_to_news, delimiter=",")
 crawldb = db["moderationtable"]
 
 MAX_SOURCES = 100
-MAX_ARTICLES_PER_SOURCE = 20
+MAX_ARTICLES_PER_SOURCE = 10
 MAX_REQUESTS = 5
 BUFFER_SIZE = 100
 
@@ -722,6 +722,7 @@ async def main():
                 published = parsed.publish_date
 
                 modified = parsed.publish_date
+                keywords = set()
 
                 description = format_text(parsed.summary)
                 print(json.dumps(parsed.meta_data, indent=4, default=str))
@@ -857,11 +858,12 @@ async def main():
                 title = unidecode(parsed.title)
                 _keywords = set()
                 _category = set()
-                for kw in keywords:
+                for kw in _keywords:
                     _keywords.update([format_text(_kw.strip()) for _kw in kw.split(",")])
                 for cat in category:
                     _category.update([format_text(_cat.strip()) for _cat in cat.split(",")])
-                _keywords.update(glob['keywords'])
+                if 'keywords' in glob:
+                    _keywords.update(glob['keywords'])
 
                 row = {
                     "raw_content": unidecode(article.content),
