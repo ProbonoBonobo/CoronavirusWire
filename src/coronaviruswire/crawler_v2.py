@@ -581,7 +581,7 @@ async def fetch_content(url):
 async def main():
     keep_going = True
     print(f"{cyan('[ eventloop ]')} :: Loaded {len(news_sources)} sources")
-    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values() if row['sourcestate'] in ("Washington", "California")]))
+    _l = list(flatten_list([row["sitemap_urls"] for row in news_sources.values()]))
     queue = random.sample(_l, len(_l))
     print(queue)
     if MAX_SOURCES and len(queue) >= MAX_SOURCES:
