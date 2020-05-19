@@ -64,10 +64,10 @@ news_sources = load_news_sources(path_to_news, delimiter=",")
 
 crawldb = db["moderationtable"]
 
-MAX_SOURCES = 10
-MAX_ARTICLES_PER_SOURCE = 2
-MAX_REQUESTS = 20
-BUFFER_SIZE = 10
+MAX_SOURCES = 100
+MAX_ARTICLES_PER_SOURCE = 20
+MAX_REQUESTS = 5
+BUFFER_SIZE = 100
 
 
 
