@@ -22,7 +22,7 @@ from url_normalize import url_normalize
 import lxml
 import re
 from src.coronaviruswire.common import db
-# from src.coronaviruswire.async_utils import fetch_all
+from src.coronaviruswire.async_utils import fetch_all
 from collections import Counter
 import spacy
 import termcolor
@@ -90,7 +90,7 @@ def parse_html(responses):
     return responses
 
 
-def iter_csv(fp="../../lib/newspapers.csv", delimiter="\t"):
+def iter_csv(fp="lib/newspapers.csv", delimiter="\t"):
     with open(fp, "r") as f:
         cols = f.readline().strip().split(delimiter)
         f_csv = csv.DictReader(f, fieldnames=cols, delimiter=delimiter)
@@ -171,7 +171,6 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
     for row in list(news):
         resolved_urls = []
         for k, v in list(row.items()):
-            print(k, v)
             if not k:
                 print(red(f"Bad row in newspapers.tsv: {row}"))
                 continue
@@ -183,9 +182,6 @@ def load_news_sources(fp="../../lib/newspapers.tsv", delimiter="\t"):
                 # resolved = datetime.datetime.now().strftime(v)
                 resolved_urls.append(v)
 
-        print("resolved_urls")
-        print(resolved_urls)
-        print(row)
         url = url_normalize(row["url"]).strip().lower()
         parsed = urlparse(url)
         row["url"] = url
@@ -280,7 +276,7 @@ def serialize_call_args(f):
 
     return wrapped
 
-
+import dill
 def cache_queries(func):
     sym = func.__name__
 
@@ -288,15 +284,16 @@ def cache_queries(func):
 
     def wrapped(*args, **kwargs):
         try:
-            with open("geocache.json", "r") as f:
-                cache = json.load(f)
+            with open(".cache.dill", "rb") as f:
+                cache = dill.load(f)
         except:
             cache = {}
-            with open("geocache.json", "w") as f:
-                json.dump(cache, f)
+            with open(".cache.dill", "wb") as f:
+                dill.dump(cache, f)
         if sym not in cache:
             cache[sym] = {}
         call_args = argmapper(*args, **kwargs)
+        call_args['op'] = sym
         hashable = blake(call_args)
         if "cache_override" in kwargs and kwargs["cache_override"]:
             print(f"Overriding cached query: {args}")
@@ -308,8 +305,8 @@ def cache_queries(func):
         out = func(*args, **kwargs)
         call_args["__output__"] = out
         cache[sym][hashable] = call_args
-        with open("geocache.json", "w") as f:
-            json.dump(cache, f)
+        with open(".cache.dill", "wb") as f:
+            dill.dump(cache, f)
         return cache[sym][hashable]["__output__"]
 
     return wrapped
@@ -507,29 +504,46 @@ def flatten_list(alist):
             yield item
 
 def extract_entities_with_allennlp(s):
-    model_url = "https://s3-us-west-2.amazonaws.com/allennlp/models/ner-model-2018.12.18.tar.gz"
-
+    from allennlp.predictors.predictor import Predictor
+    import allennlp_models.ner.crf_tagger
+    model_url = "https://storage.googleapis.com/allennlp-public-models/ner-model-2020.02.10.tar.gz"
     global allennlp_model
-    if not allennlp_model:
+    if not 'allennlp_model' in globals() or not globals()['allennlp_model']:
         print(f"Loading AllenNLP NER model...")
         allennlp_model = Predictor.from_path(model_url)
         print(f"Load complete.")
     results = allennlp_model.predict(sentence=s)
+    # print(json.dumps(results))
     ents = []
     curr = []
     for word, tag in zip(results['words'], results['tags']):
-        if not "LOC" in tag:
+        if not re.search(r"(LOC)", tag):
             continue
-        curr.append(word)
+
+
+        if word.startswith(","):
+            curr[-1] += word
+        else:
+            curr.append(word)
         if tag[0] in "LU":
-            ents.append(" ".join(curr))
+            span = " ".join(curr)
+            if len(span) >= 5:
+                ents.append(span)
             curr = []
+
     print("======================================================================================================")
     print(green(s))
     print("======================================================================================================")
+
+    cased = defaultdict(list)
+    for ent in ents:
+        cased[ent.lower()].append(ent)
+    for k,v in cased.items():
+        cased[k] = list(sorted(v, key=lambda x: v.count(x)))
+    freqs = {v[-1]: len(v) for v in cased.values()}
     print(blue("Extracted entities:"))
-    print(blue(ents))
-    return ents
+    print(cyan(json.dumps(freqs, indent=4)))
+    return freqs
 
 
 def extract_entities(s):
@@ -827,8 +841,7 @@ def parse_robots(url):
          if res.status_code == 200: 
              soup = BeautifulSoup(res.content, 'xml') 
              if soup.find_all("url"): 
-                 root = soup.find("url") 
-                  
+                 root = soup.find("url")
                  promising_candidates.add(maybe_url) 
                  globals().update(locals()) 
      if not re.findall(r"\.(com|org|net|edu)/", url): 
@@ -848,9 +861,8 @@ def parse_robots(url):
          candidate_urls.add(found_sitemap_url) 
          if any(path in found_sitemap_url for path in common_paths): 
              promising_candidates.add(found_sitemap_url) 
-     for maybe_url, res in fetch_all(potential_sitemap_urls, 100).items(): 
-         validate_sitemap_http_response(maybe_url, res) 
-         globals().update(locals()) 
+     for maybe_url, res in fetch_all(potential_sitemap_urls, 10).items():
+         validate_sitemap_http_response(maybe_url, res)
      return promising_candidates  
 
 
@@ -916,7 +928,7 @@ def format_text(text):
      nbsp_removed = re.sub('(\xa0|\t|\r)', ' ', html_markup_removed) 
      normalized = re.sub("(\s?\n[\n\s]+)", "\n", nbsp_removed) 
      after = fromstring(normalized).text_content()
-     return unidecode(after)
+     return str(unidecode(after))
 
       
   
